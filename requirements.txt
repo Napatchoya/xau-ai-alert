@@ -3,3 +3,4 @@ requests
 ta
 scikit-learn
 joblib
+python-dotenv
