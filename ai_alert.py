@@ -4,11 +4,16 @@ import pandas as pd
 import time
 import ta
 import joblib
+import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load dotenv()
 
 # 🔐 ใส่ TOKEN และ CHAT_ID ของ Telegram Bot
-BOT_TOKEN = "8129742111:AAEUY3cG3p0tegyT16jGy5RgnEqhgdhyOww"
-CHAT_ID = "7924818584"      
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+API_KEY = os.getenv("API_KEY")
   # เช่น 123456789 หรือ -987654321 (ถ้าเป็นกลุ่ม)
 
 # โหลดโมเดล AI
@@ -26,7 +31,6 @@ def send_telegram(message):
 
 # ✅ ดึงข้อมูล XAU/USD แบบ real-time จาก TwelveData
 def get_latest_xau():
-    API_KEY = "5ca9b440827a4446af3ad71f2f908109"
     url = f"https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=1h&outputsize=10&apikey={API_KEY}"
     res = requests.get(url).json()
 
