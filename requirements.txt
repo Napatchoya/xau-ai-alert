@@ -1,6 +1,14 @@
+flask
 pandas
 requests
 ta
-scikit-learn
+scikit-learn==1.6.1
 joblib
 python-dotenv
+flask
+joblib
+pandas
+python-dotenv
+requests
+scikit-learn
+ta
