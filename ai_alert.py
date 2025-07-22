@@ -20,7 +20,7 @@ API_KEY = os.getenv("API_KEY")
 # โหลดโมเดล AI
 model = joblib.load("xau_model.pkl")
 
-app = Flask(ai_alert)
+app = Flask(__name__)
 last_signal = None
 
 def send_telegram(message):
