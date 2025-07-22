@@ -1,1 +1,1 @@
-web: gunicorn main:app
+web: gunicorn ai_alert:app
