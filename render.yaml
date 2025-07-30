@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: xau-ai-alert
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn ai_alert:app
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: CHAT_ID
+        sync: false
+      - key: API_KEY
+        sync: false
+    healthCheckPath: /
+    autoDeploy: false
