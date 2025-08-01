@@ -74,8 +74,8 @@ def run_ai_once():
         return f"❌ ERROR: {e}"
 
 @app.route('/')
-def home():
-    return "✅ AI Trading Bot is live!", 200
+def health():
+    return 'OK', 200
 
 @app.route('/run-ai')
 def run_ai():
