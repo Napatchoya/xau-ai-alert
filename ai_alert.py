@@ -75,7 +75,7 @@ def run_ai_once():
 
 @app.route('/')
 def health():
-    return 'OK', 200
+    return Response('OK', status=200,mimetype='text/plain')
 
 @app.route('/run-ai')
 def run_ai():
