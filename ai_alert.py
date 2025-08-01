@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo  # ใช้ได้ใน Python 3.9+
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response
 from threading import Thread
 
 load_dotenv()
