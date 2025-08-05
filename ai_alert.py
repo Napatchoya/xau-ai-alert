@@ -73,9 +73,16 @@ def run_ai_once():
     except Exception as e:
         return f"❌ ERROR: {e}"
 
-@app.route('/')
+#@app.route('/')
+#def health():
+    #return Response('OK', status=200,mimetype='text/plain')
+
+@app.route('/health')
 def health():
-    return Response('OK', status=200,mimetype='text/plain')
+    return Response("OK", status=200, headers={
+        "Content-Type": "text/plain",
+        "Cache-Control": "no-cache"
+    })
 
 @app.route('/run-ai')
 def run_ai():
