@@ -12,5 +12,5 @@ services:
         sync: false
       - key: API_KEY
         sync: false
-    healthCheckPath: /
+    healthCheckPath: /health
     autoDeploy: false
