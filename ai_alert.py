@@ -78,7 +78,7 @@ def run_ai_once():
     #return Response('OK', status=200,mimetype='text/plain')
 
 @app.route('/health')
-def health():
+def health_check():
     return Response("OK", status=200, headers={
         "Content-Type": "text/plain",
         "Cache-Control": "no-cache"
