@@ -77,7 +77,8 @@ def run_ai_once():
 #def health():
     #return Response('OK', status=200,mimetype='text/plain')
 
-@app.route('/health')
+#@app.route('/health')
+@app.route('/health', methods=['GET', 'HEAD'])
 def health_check():
     return Response("OK", status=200, headers={
         "Content-Type": "text/plain",
