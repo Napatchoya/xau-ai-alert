@@ -85,6 +85,15 @@ def health_check():
         "Cache-Control": "no-cache"
     })
 
+@app.route('/test-telegram')
+def test_telegram():
+    print("BOT_TOKEN:", BOT_TOKEN)  # Debug
+    print("CHAT_ID:", CHAT_ID)      # Debug
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
+    status = send_telegram(message)
+    return jsonify({"status": status, "message": message})
+
 @app.route('/run-ai')
 def run_ai():
     def task():
