@@ -103,12 +103,12 @@ def run_ai():
     Thread(target=task).start()
     return jsonify({"status": "🔁 AI started on-demand."})
 
-@app.route('/test-telegram')
-def test_telegram():
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
-    status = send_telegram(message)
-    return jsonify({"status": status, "message": message})
+#@app.route('/test-telegram')
+#def test_telegram():
+    #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    #message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
+    #status = send_telegram(message)
+    #return jsonify({"status": status, "message": message})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
