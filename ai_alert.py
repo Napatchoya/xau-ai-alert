@@ -59,12 +59,37 @@ def run_ai_once():
         prediction = model.predict(X_live)[0]
         signal = "📈 BUY" if prediction == 1 else "📉 SELL"
 
+        price = latest['close'].iloc[0]  # ราคาปัจจุบัน
+        rsi = latest['rsi'].iloc[0]
+        ema = latest['ema'].iloc[0]
+
+        # คำนวณ TP/SL ตัวอย่าง (สามารถปรับได้)
+        if signal == "📈 BUY":
+            tp1 = price * 1.002
+            tp2 = price * 1.004
+            tp3 = price * 1.006
+            sl = price * 0.998
+            reason = f"RSI {rsi:.2f} > 50 และราคาปิดอยู่เหนือ EMA {ema:.2f}"
+        else:
+            tp1 = price * 0.998
+            tp2 = price * 0.996
+            tp3 = price * 0.994
+            sl = price * 1.002
+            reason = f"RSI {rsi:.2f} < 50 และราคาปิดอยู่ต่ำกว่า EMA {ema:.2f}"
+
         utc_time = latest.index[0]
         thai_time = utc_time.tz_localize('UTC').astimezone(ZoneInfo("Asia/Bangkok"))
         timestamp = thai_time.strftime('%Y-%m-%d %H:%M')
 
         if signal != last_signal:
-            msg = f"{signal} XAU/USD @ {timestamp}"
+            msg = (
+                f"{signal} XAU/USD @ {price:.2f} ({timestamp})\n"
+                f"🎯 TP1: {tp1:.2f}\n"
+                f"🎯 TP2: {tp2:.2f}\n"
+                f"🎯 TP3: {tp3:.2f}\n"
+                f"🛑 SL: {sl:.2f}\n"
+                f"📋 เหตุผล: {reason}"
+            )
             send_telegram(msg)
             last_signal = signal
             return f"🔔 ส่ง Telegram: {msg}"
@@ -73,11 +98,6 @@ def run_ai_once():
     except Exception as e:
         return f"❌ ERROR: {e}"
 
-#@app.route('/')
-#def health():
-    #return Response('OK', status=200,mimetype='text/plain')
-
-#@app.route('/health')
 @app.route('/health', methods=['GET', 'HEAD'])
 def health_check():
     return Response("OK", status=200, headers={
@@ -102,13 +122,6 @@ def run_ai():
 
     Thread(target=task).start()
     return jsonify({"status": "🔁 AI started on-demand."})
-
-#@app.route('/test-telegram')
-#def test_telegram():
-    #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    #message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
-    #status = send_telegram(message)
-    #return jsonify({"status": status, "message": message})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
