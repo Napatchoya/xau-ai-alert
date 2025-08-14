@@ -4,15 +4,15 @@ import time
 import ta
 import joblib
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from zoneinfo import ZoneInfo  # ใช้ได้ใน Python 3.9+
+from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, Response
 from threading import Thread
 
 load_dotenv()
 
-# 🔐 ใส่ TOKEN และ CHAT_ID ของ Telegram Bot
+# 🔐 TOKEN และ CHAT_ID ของ Telegram Bot
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("API_KEY")
@@ -25,10 +25,7 @@ last_signal = None
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
+    data = {"chat_id": CHAT_ID, "text": message}
     response = requests.post(url, data=data)
     return response.status_code
 
@@ -56,59 +53,68 @@ def run_ai_once():
     try:
         latest = get_latest_xau()
         X_live = latest[['rsi', 'ema', 'price_change']]
-        prediction = model.predict(X_live)[0]
-        signal = "📈 BUY" if prediction == 1 else "📉 SELL"
 
-        price = latest['close'].iloc[0]  # ราคาปัจจุบัน
+        try:
+            prediction = model.predict(X_live)[0]
+            can_predict = True
+        except Exception:
+            can_predict = False
+
+        price = latest['close'].iloc[0]
+        utc_time = latest.index[0]
+        thai_time = utc_time.tz_localize('UTC').astimezone(ZoneInfo("Asia/Bangkok"))
+        timestamp_str = thai_time.strftime('%d %b %Y เวลา %H:%M น')
         rsi = latest['rsi'].iloc[0]
         ema = latest['ema'].iloc[0]
 
-        # คำนวณ TP/SL ตัวอย่าง (สามารถปรับได้)
-        if signal == "📈 BUY":
+        if not can_predict:
+            msg = (
+                f"ตอนนี้ วันที่ {timestamp_str}\n"
+                f"XAUUSD TF H1 ราคาปิดที่ {price:,.2f}$\n"
+                f"BOT ยังไม่สามารถทำนายจุดที่จะทำการซื้อขายได้"
+            )
+            send_telegram(msg)
+            return msg
+
+        signal = "BUY" if prediction == 1 else "SELL"
+
+        if signal == "BUY":
             tp1 = price * 1.002
             tp2 = price * 1.004
             tp3 = price * 1.006
             sl = price * 0.998
-            reason = f"RSI {rsi:.2f} > 50 และราคาปิดอยู่เหนือ EMA {ema:.2f}"
+            reason = f"RSI {rsi:.2f} > 50 และราคาปิดเหนือ EMA {ema:.2f}"
         else:
             tp1 = price * 0.998
             tp2 = price * 0.996
             tp3 = price * 0.994
             sl = price * 1.002
-            reason = f"RSI {rsi:.2f} < 50 และราคาปิดอยู่ต่ำกว่า EMA {ema:.2f}"
+            reason = f"RSI {rsi:.2f} < 50 และราคาปิดต่ำกว่า EMA {ema:.2f}"
 
-        utc_time = latest.index[0]
-        thai_time = utc_time.tz_localize('UTC').astimezone(ZoneInfo("Asia/Bangkok"))
-        timestamp = thai_time.strftime('%Y-%m-%d %H:%M')
+        msg = (
+            f"ตอนนี้ วันที่ {timestamp_str}\n"
+            f"XAUUSD TF H1 ราคาปิดที่ {price:,.2f}$\n"
+            f"BOT สามารถทำนายจุดที่จะทำการซื้อขายได้\n"
+            f"เหตุผล: {reason}\n"
+            f"📌 ขอให้เข้า {signal} ที่ราคา {price:,.2f}$\n"
+            f"🎯 TP1: {tp1:,.2f}\n"
+            f"🎯 TP2: {tp2:,.2f}\n"
+            f"🎯 TP3: {tp3:,.2f}\n"
+            f"🛑 SL: {sl:,.2f}"
+        )
 
-        if signal != last_signal:
-            msg = (
-                f"{signal} XAU/USD @ {price:.2f} ({timestamp})\n"
-                f"🎯 TP1: {tp1:.2f}\n"
-                f"🎯 TP2: {tp2:.2f}\n"
-                f"🎯 TP3: {tp3:.2f}\n"
-                f"🛑 SL: {sl:.2f}\n"
-                f"📋 เหตุผล: {reason}"
-            )
-            send_telegram(msg)
-            last_signal = signal
-            return f"🔔 ส่ง Telegram: {msg}"
-        else:
-            return f"✅ ยังไม่มีสัญญาณใหม่ ({timestamp})"
+        send_telegram(msg)
+        return msg
+
     except Exception as e:
         return f"❌ ERROR: {e}"
 
 @app.route('/health', methods=['GET', 'HEAD'])
 def health_check():
-    return Response("OK", status=200, headers={
-        "Content-Type": "text/plain",
-        "Cache-Control": "no-cache"
-    })
+    return Response("OK", status=200, headers={"Content-Type": "text/plain", "Cache-Control": "no-cache"})
 
 @app.route('/test-telegram')
 def test_telegram():
-    print("BOT_TOKEN:", BOT_TOKEN)  # Debug
-    print("CHAT_ID:", CHAT_ID)      # Debug
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
     status = send_telegram(message)
@@ -119,10 +125,18 @@ def run_ai():
     def task():
         result = run_ai_once()
         print(result)
-
     Thread(target=task).start()
     return jsonify({"status": "🔁 AI started on-demand."})
 
+def hourly_task_exact():
+    while True:
+        now = datetime.now()
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=5, microsecond=0)  # เริ่ม +5 วิ กันพลาด
+        wait_seconds = (next_hour - now).total_seconds()
+        time.sleep(wait_seconds)
+        run_ai_once()
+
 if __name__ == '__main__':
+    Thread(target=hourly_task_exact, daemon=True).start()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
