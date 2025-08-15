@@ -5,38 +5,40 @@ import joblib
 import os
 from datetime import datetime
 from dotenv import load_dotenv
-from zoneinfo import ZoneInfo  # ใช้ได้ใน Python 3.9+
+from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, Response
 from threading import Thread
 
 load_dotenv()
 
-# 🔐 TOKEN และ CHAT_ID ของ Telegram Bot
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("API_KEY")
 
-# โหลดโมเดล AI
-model = joblib.load("xau_model.pkl")
+model = None  # โหลดโมเดลตอนใช้งานจริง
+last_signal = None
+last_sent_hour = None
 
 app = Flask(__name__)
-last_signal = None
-last_sent_hour = None  # เก็บชั่วโมงล่าสุดที่ส่งแล้ว
 
-# ฟังก์ชันส่งข้อความไป Telegram
+def load_model():
+    global model
+    if model is None:
+        model = joblib.load("xau_model.pkl")
+
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-    response = requests.post(url, data=data)
-    return response.status_code
+    data = {"chat_id": CHAT_ID, "text": message}
+    try:
+        r = requests.post(url, data=data, timeout=10)
+        return r.status_code
+    except requests.exceptions.RequestException as e:
+        print(f"Telegram send error: {e}")
+        return None
 
-# ดึงข้อมูล XAU/USD ล่าสุด
 def get_latest_xau():
     url = f"https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=1h&outputsize=50&apikey={API_KEY}"
-    res = requests.get(url).json()
+    res = requests.get(url, timeout=10).json()
     df = pd.DataFrame(res['values'])
     df['datetime'] = pd.to_datetime(df['datetime'])
     now_utc = pd.Timestamp.utcnow().replace(tzinfo=None)
@@ -50,10 +52,10 @@ def get_latest_xau():
     df.dropna(subset=['rsi', 'ema', 'price_change'], inplace=True)
     return df.tail(1)
 
-# รัน AI และส่งข้อความตามเงื่อนไข
 def run_ai_once():
     global last_signal
     try:
+        load_model()
         latest = get_latest_xau()
         X_live = latest[['rsi', 'ema', 'price_change']]
         price = latest['close'].iloc[0]
@@ -61,7 +63,6 @@ def run_ai_once():
         thai_time = utc_time.tz_localize('UTC').astimezone(ZoneInfo("Asia/Bangkok"))
         timestamp = thai_time.strftime('%Y-%m-%d %H:%M')
 
-        # ถ้าไม่มีข้อมูลเพียงพอ
         if X_live.isnull().values.any():
             msg = (
                 f"ตอนนี้ วันที่ {timestamp} \n"
@@ -71,10 +72,8 @@ def run_ai_once():
             send_telegram(msg)
             return msg
 
-        # ทำนาย
         prediction = model.predict(X_live)[0]
 
-        # คำนวณ TP/SL และเหตุผล
         if prediction == 1:  # BUY
             signal = "📈 BUY"
             tp1 = price * 1.002
@@ -106,17 +105,14 @@ def run_ai_once():
         return msg
 
     except Exception as e:
-        return f"❌ ERROR: {e}"
+        err_msg = f"❌ ERROR: {e}"
+        print(err_msg)
+        return err_msg
 
-# Health check
 @app.route('/health', methods=['GET', 'HEAD'])
 def health_check():
-    return Response("OK", status=200, headers={
-        "Content-Type": "text/plain",
-        "Cache-Control": "no-cache"
-    })
+    return Response("OK", status=200, headers={"Content-Type": "text/plain"})
 
-# ทดสอบส่งข้อความ Telegram
 @app.route('/test-telegram')
 def test_telegram():
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -124,7 +120,6 @@ def test_telegram():
     status = send_telegram(message)
     return jsonify({"status": status, "message": message})
 
-# เรียก AI ทุกต้นชั่วโมง
 @app.route('/run-ai')
 def run_ai():
     global last_sent_hour
@@ -133,10 +128,7 @@ def run_ai():
 
     if current_hour != last_sent_hour:
         last_sent_hour = current_hour
-        def task():
-            result = run_ai_once()
-            print(result)
-        Thread(target=task).start()
+        Thread(target=lambda: print(run_ai_once())).start()
         return jsonify({"status": "✅ ส่งข้อความรอบต้นชั่วโมง", "time": now.strftime("%Y-%m-%d %H:%M")})
     else:
         return jsonify({"status": "⏳ รอรอบต้นชั่วโมงถัดไป", "time": now.strftime("%Y-%m-%d %H:%M")})
