@@ -6,5 +6,8 @@ ta
 scikit-learn==1.6.1
 joblib
 python-dotenv
-
-
+tensorflow>=2.10.0
+matplotlib
+mplfinance
+Pillow
+opencv-python-headless
