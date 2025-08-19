@@ -1,4 +1,3 @@
-# ai_alert.py
 import os
 import time
 import joblib
@@ -28,6 +27,7 @@ last_sent_hour = None  # ส่งแค่ต้นชั่วโมง
 FEATURES = ["rsi", "ema", "price_change"]
 
 # ====================== Utilities ======================
+
 def send_telegram(message: str) -> int:
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": message}
@@ -45,7 +45,7 @@ def get_latest_xau() -> pd.DataFrame:
     df["datetime"] = pd.to_datetime(df["datetime"])
     df = df.sort_values("datetime")
     df.set_index("datetime", inplace=True)
-    df["close"] = df["close"].astype(float)
+    df[["open", "high", "low", "close"]] = df[["open", "high", "low", "close"]].astype(float)
 
     # ====== ดึงราคาปัจจุบันแบบ Real-time ======
     price_url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEY}"
@@ -70,6 +70,7 @@ def format_th_time(ts_utc: pd.Timestamp) -> str:
     return thai_time.strftime("%Y-%m-%d %H:%M")
 
 # ================== Model-based Explanation ==================
+
 def explain_prediction(model, x_vec: np.ndarray, price: float, ema_val: float, rsi_val: float, pred_label: int):
     confidence = None
     try:
@@ -155,6 +156,7 @@ def calc_targets(pred_label: int, price: float):
     return signal, (tp1, tp2, tp3, sl)
 
 # ================== Core Prediction ==================
+
 def run_ai_once():
     global last_signal
     try:
@@ -177,6 +179,12 @@ def run_ai_once():
         ema_val = float(latest["ema"].iloc[0])
         rsi_val = float(latest["rsi"].iloc[0])
 
+        # OHLC
+        o = latest["open"].iloc[0]
+        h = latest["high"].iloc[0]
+        l = latest["low"].iloc[0]
+        c = latest["close"].iloc[0]
+
         pred = int(model.predict([x])[0])
         reason_text, _ = explain_prediction(model, x, price, ema_val, rsi_val, pred)
 
@@ -185,7 +193,12 @@ def run_ai_once():
 
         msg = (
             f"ตอนนี้ วันที่ {ts_txt}\n"
-            f"XAUUSD TF H1 ราคาปัจจุบัน {price:,.2f}$\n"
+            f"XAUUSD TF H1\n"
+            f"Open = {o:,.2f}$\n"
+            f"High = {h:,.2f}$\n"
+            f"Low = {l:,.2f}$\n"
+            f"Close = {c:,.2f}$\n"
+            f"ราคาปัจจุบัน = {price:,.2f}$\n\n"
             f"BOT ทำนาย: {signal}\n"
             f"{reason_text}\n"
             f"🎯 TP1: {tp1:,.2f}$\n"
@@ -200,6 +213,7 @@ def run_ai_once():
         return f"❌ ERROR: {e}"
 
 # ================== Routes ==================
+
 @app.route('/health', methods=['GET', 'HEAD'])
 def health_check():
     return Response("OK", status=200, headers={
