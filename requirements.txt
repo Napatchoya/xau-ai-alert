@@ -11,3 +11,4 @@ matplotlib
 mplfinance
 Pillow
 opencv-python-headless
+numpy
