@@ -704,4 +704,249 @@ def test_pattern_ai():
         return jsonify({
             "status": "success", 
             "message": "Pattern AI test completed",
-            "result": result[:
+            "result": result[:500] + "..." if len(result) > 500 else result
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/pattern-status')
+def pattern_status():
+    """Get current pattern analysis status"""
+    try:
+        df = get_xau_data_extended()
+        if df is None or len(df) < 10:
+            return jsonify({
+                "status": "error", 
+                "message": "Cannot fetch sufficient data"
+            })
+        
+        detector = SimplePatternDetector()
+        pattern_info = detector.detect_pattern(df.tail(50))
+        
+        current_price = float(df['close'].iloc[-1])
+        current_rsi = float(calculate_rsi(df['close']).iloc[-1]) if len(df) > 14 else 50.0
+        
+        return jsonify({
+            "status": "success",
+            "current_price": current_price,
+            "pattern_detection": pattern_info,
+            "rsi": current_rsi,
+            "timestamp": datetime.now().isoformat(),
+            "data_points": len(df)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        })
+
+@app.route('/status')
+def system_status():
+    """Get overall system status"""
+    try:
+        status_info = {
+            "app": "XAU AI Trading Bot",
+            "version": "2.0 - Hybrid System",
+            "timestamp": datetime.now().isoformat(),
+            "systems": {
+                "original": "RSI + EMA + Price Change",
+                "pattern": "Rule-based Pattern Detection"
+            },
+            "libraries": {
+                "tensorflow": HAS_TENSORFLOW,
+                "sklearn": HAS_SKLEARN,
+                "ta": HAS_TA,
+                "charts": HAS_CHARTS
+            },
+            "endpoints": [
+                "/health",
+                "/run-ai",
+                "/run-pattern-bot", 
+                "/test-telegram",
+                "/test-pattern-ai",
+                "/pattern-status",
+                "/status"
+            ],
+            "environment": {
+                "bot_token_configured": bool(BOT_TOKEN),
+                "chat_id_configured": bool(CHAT_ID),
+                "api_key_configured": bool(API_KEY)
+            }
+        }
+        
+        return jsonify(status_info)
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/')
+def home():
+    """Home page with API documentation"""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>XAU AI Trading Bot</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background-color: #1a1a1a; color: #ffffff; }
+            .container { max-width: 800px; margin: 0 auto; }
+            h1 { color: #00ff88; text-align: center; }
+            h2 { color: #ffaa00; border-bottom: 2px solid #ffaa00; padding-bottom: 10px; }
+            .endpoint { background-color: #2a2a2a; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #00ff88; }
+            .method { display: inline-block; background-color: #007acc; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+            .status { color: #00ff88; font-weight: bold; }
+            .warning { color: #ffaa00; }
+            .error { color: #ff4444; }
+            code { background-color: #333; padding: 2px 6px; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🤖 XAU AI Trading Bot</h1>
+            <p class="status">✅ System Online | Hybrid AI Trading System</p>
+            
+            <h2>📊 Trading Systems</h2>
+            <ul>
+                <li><strong>Original System:</strong> RSI + EMA + Price Change Analysis</li>
+                <li><strong>Pattern AI System:</strong> Chart Pattern Detection + Technical Analysis</li>
+            </ul>
+            
+            <h2>🔗 API Endpoints</h2>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/health</strong>
+                <p>Health check endpoint for monitoring services</p>
+                <p><em>Returns:</em> Simple "OK" response</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/run-ai</strong>
+                <p>Execute original AI trading system (RSI + EMA + Price Change)</p>
+                <p><em>Frequency:</em> Once per hour</p>
+                <p><em>Output:</em> Telegram message with BUY/SELL signals</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/run-pattern-bot</strong>
+                <p>Execute pattern AI trading system (Chart Patterns + Technical Analysis)</p>
+                <p><em>Frequency:</em> Once per hour</p>
+                <p><em>Output:</em> Telegram message with pattern-based signals</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/test-telegram</strong>
+                <p>Test Telegram bot connection</p>
+                <p><em>Returns:</em> Test message status</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/test-pattern-ai</strong>
+                <p>Test pattern detection system without sending to Telegram</p>
+                <p><em>Returns:</em> Pattern analysis results</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/pattern-status</strong>
+                <p>Get current pattern analysis status</p>
+                <p><em>Returns:</em> JSON with current patterns and indicators</p>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method">GET</span> <strong>/status</strong>
+                <p>Get comprehensive system status</p>
+                <p><em>Returns:</em> System information and configuration status</p>
+            </div>
+            
+            <h2>⚙️ Configuration</h2>
+            <p>The bot requires the following environment variables:</p>
+            <ul>
+                <li><code>BOT_TOKEN</code> - Telegram bot token</li>
+                <li><code>CHAT_ID</code> - Telegram chat ID for messages</li>
+                <li><code>API_KEY</code> - TwelveData API key for market data</li>
+            </ul>
+            
+            <h2>📈 Usage</h2>
+            <p>Use monitoring services like UptimeRobot to ping:</p>
+            <ul>
+                <li><code>/health</code> for keeping the service alive</li>
+                <li><code>/run-ai</code> for original system signals</li>
+                <li><code>/run-pattern-bot</code> for pattern-based signals</li>
+            </ul>
+            
+            <h2>⚠️ Risk Disclaimer</h2>
+            <p class="warning">This is an automated trading bot for educational purposes. Always use proper risk management and never risk more than 1-2% of your account per trade. Past performance does not guarantee future results.</p>
+            
+            <hr style="border-color: #444; margin: 40px 0;">
+            <p style="text-align: center; color: #666;">
+                🚀 XAU AI Trading Bot v2.0 | Powered by Python + Flask + AI
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
+
+# ====================== Error Handlers ======================
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested endpoint does not exist",
+        "available_endpoints": [
+            "/health", "/run-ai", "/run-pattern-bot", 
+            "/test-telegram", "/test-pattern-ai", 
+            "/pattern-status", "/status", "/"
+        ]
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": "An unexpected error occurred",
+        "suggestion": "Check the logs or try again later"
+    }), 500
+
+# ====================== Main Application ======================
+
+if __name__ == '__main__':
+    print("=" * 60)
+    print("🤖 XAU AI Trading Bot v2.0 Starting...")
+    print("=" * 60)
+    print(f"🔗 Health Check: /health")
+    print(f"📈 Original System: /run-ai")
+    print(f"🎯 Pattern AI: /run-pattern-bot")
+    print(f"📱 Test Telegram: /test-telegram")
+    print(f"🧪 Test Pattern: /test-pattern-ai")
+    print(f"📊 Pattern Status: /pattern-status")
+    print(f"ℹ️ System Status: /status")
+    print("=" * 60)
+    print(f"🔥 Libraries Available:")
+    print(f"   • TensorFlow: {'✅' if HAS_TENSORFLOW else '❌'}")
+    print(f"   • Scikit-learn: {'✅' if HAS_SKLEARN else '❌'}")
+    print(f"   • TA-Lib: {'✅' if HAS_TA else '❌'}")
+    print(f"   • Charts: {'✅' if HAS_CHARTS else '❌'}")
+    print("=" * 60)
+    print(f"⚙️ Configuration:")
+    print(f"   • Bot Token: {'✅ Configured' if BOT_TOKEN else '❌ Missing'}")
+    print(f"   • Chat ID: {'✅ Configured' if CHAT_ID else '❌ Missing'}")
+    print(f"   • API Key: {'✅ Configured' if API_KEY else '❌ Missing'}")
+    print("=" * 60)
+    print("🚀 Ready for AI-powered trading!")
+    print("💰 Asset: XAU/USD | Timeframe: 1H")
+    print("📡 Monitoring: Configure UptimeRobot with endpoints above")
+    print("=" * 60)
+    
+    # Get port from environment
+    port = int(os.environ.get("PORT", 5000))
+    
+    # Run the Flask app
+    app.run(host="0.0.0.0", port=port, debug=False)
