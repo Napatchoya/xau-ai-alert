@@ -309,6 +309,112 @@ class PatternDetector:
             print(f"Price predictor creation error: {e}")
             return None
 
+    def predict_trading_signals(self, df, pattern_info):
+        """Predict entry, TP, SL using pattern and technical indicators"""
+        try:
+            current_price = df['close'].iloc[-1]
+            
+            # Calculate technical indicators
+            df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
+            df['ema_10'] = ta.trend.EMAIndicator(df['close'], window=10).ema_indicator()
+            df['ema_21'] = ta.trend.EMAIndicator(df['close'], window=21).ema_indicator()
+            
+            # Pattern-based trading logic
+            pattern_id = pattern_info['pattern_id']
+            confidence = pattern_info['confidence']
+            
+            if pattern_id == 1:  # HEAD_SHOULDERS (Bearish)
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.001)
+                tp1 = current_price * 0.995
+                tp2 = current_price * 0.990
+                tp3 = current_price * 0.985
+                sl = current_price * 1.010
+                
+            elif pattern_id == 2:  # DOUBLE_TOP (Bearish)
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.0005)
+                tp1 = current_price * 0.996
+                tp2 = current_price * 0.992
+                tp3 = current_price * 0.988
+                sl = current_price * 1.008
+                
+            elif pattern_id == 3:  # DOUBLE_BOTTOM (Bullish)
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.0005)
+                tp1 = current_price * 1.004
+                tp2 = current_price * 1.008
+                tp3 = current_price * 1.012
+                sl = current_price * 0.992
+                
+            elif pattern_id in [4, 8]:  # ASCENDING_TRIANGLE, BULL_FLAG (Bullish)
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.001)
+                tp1 = current_price * 1.005
+                tp2 = current_price * 1.010
+                tp3 = current_price * 1.015
+                sl = current_price * 0.990
+                
+            elif pattern_id in [5, 9]:  # DESCENDING_TRIANGLE, BEAR_FLAG (Bearish)
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.001)
+                tp1 = current_price * 0.995
+                tp2 = current_price * 0.990
+                tp3 = current_price * 0.985
+                sl = current_price * 1.010
+                
+            else:  # NO_PATTERN or others - use indicators
+                rsi_current = df['rsi'].iloc[-1] if not df['rsi'].isna().iloc[-1] else 50
+                ema_10 = df['ema_10'].iloc[-1]
+                
+                if rsi_current < 30 and current_price < ema_10:
+                    action = "BUY"
+                    entry_price = current_price + (current_price * 0.0005)
+                    tp1 = current_price * 1.003
+                    tp2 = current_price * 1.006
+                    tp3 = current_price * 1.009
+                    sl = current_price * 0.995
+                elif rsi_current > 70 and current_price > ema_10:
+                    action = "SELL"
+                    entry_price = current_price - (current_price * 0.0005)
+                    tp1 = current_price * 0.997
+                    tp2 = current_price * 0.994
+                    tp3 = current_price * 0.991
+                    sl = current_price * 1.005
+                else:
+                    action = "WAIT"
+                    entry_price = current_price
+                    tp1 = tp2 = tp3 = sl = current_price
+            
+            # Apply confidence adjustment
+            if confidence < 0.6:
+                action = "WAIT"
+                
+            return {
+                'action': action,
+                'entry_price': round(entry_price, 2),
+                'tp1': round(tp1, 2),
+                'tp2': round(tp2, 2), 
+                'tp3': round(tp3, 2),
+                'sl': round(sl, 2),
+                'confidence': confidence,
+                'current_price': round(current_price, 2)
+            }
+            
+        except Exception as e:
+            print(f"Trading signal prediction error: {e}")
+            current_price = df['close'].iloc[-1]
+            return {
+                'action': 'WAIT',
+                'entry_price': round(current_price, 2),
+                'tp1': round(current_price, 2),
+                'tp2': round(current_price, 2),
+                'tp3': round(current_price, 2),
+                'sl': round(current_price, 2),
+                'confidence': 0.30,
+                'current_price': round(current_price, 2)
+            }
+
     def create_candlestick_image(self, df, save_path=None):
         """Convert OHLC data to candlestick chart image for CNN"""
         try:
@@ -658,3 +764,101 @@ def calculate_pattern_signals(pattern_info, current_price, rsi, ema10, ema21):
     if pattern_id == 1:  # HEAD_SHOULDERS (Bearish)
         action = "SELL"
         entry_price = current_price - (current_price * 0.001)
+        tp1 = current_price * 0.995
+        tp2 = current_price * 0.990
+        tp3 = current_price * 0.985
+        sl = current_price * 1.010
+        
+    elif pattern_id == 2:  # DOUBLE_TOP (Bearish)
+        action = "SELL"
+        entry_price = current_price - (current_price * 0.0005)
+        tp1 = current_price * 0.996
+        tp2 = current_price * 0.992
+        tp3 = current_price * 0.988
+        sl = current_price * 1.008
+        
+    elif pattern_id == 3:  # DOUBLE_BOTTOM (Bullish)
+        action = "BUY"
+        entry_price = current_price + (current_price * 0.0005)
+        tp1 = current_price * 1.004
+        tp2 = current_price * 1.008
+        tp3 = current_price * 1.012
+        sl = current_price * 0.992
+        
+    elif pattern_id in [4, 8]:  # ASCENDING_TRIANGLE, BULL_FLAG (Bullish)
+        action = "BUY"
+        entry_price = current_price + (current_price * 0.001)
+        tp1 = current_price * 1.005
+        tp2 = current_price * 1.010
+        tp3 = current_price * 1.015
+        sl = current_price * 0.990
+        
+    elif pattern_id in [5, 9]:  # DESCENDING_TRIANGLE, BEAR_FLAG (Bearish)
+        action = "SELL"
+        entry_price = current_price - (current_price * 0.001)
+        tp1 = current_price * 0.995
+        tp2 = current_price * 0.990
+        tp3 = current_price * 0.985
+        sl = current_price * 1.010
+        
+    else:  # NO_PATTERN or others - use indicators
+        if rsi < 30 and current_price < ema10:
+            action = "BUY"
+            entry_price = current_price + (current_price * 0.0005)
+            tp1 = current_price * 1.003
+            tp2 = current_price * 1.006
+            tp3 = current_price * 1.009
+            sl = current_price * 0.995
+        elif rsi > 70 and current_price > ema10:
+            action = "SELL"
+            entry_price = current_price - (current_price * 0.0005)
+            tp1 = current_price * 0.997
+            tp2 = current_price * 0.994
+            tp3 = current_price * 0.991
+            sl = current_price * 1.005
+        else:
+            action = "WAIT"
+            entry_price = current_price
+            tp1 = tp2 = tp3 = sl = current_price
+    
+    # Apply confidence adjustment
+    if confidence < 0.6:
+        action = "WAIT"
+        
+    return {
+        'action': action,
+        'entry_price': round(entry_price, 2),
+        'tp1': round(tp1, 2),
+        'tp2': round(tp2, 2), 
+        'tp3': round(tp3, 2),
+        'sl': round(sl, 2),
+        'confidence': confidence,
+        'current_price': round(current_price, 2)
+    }
+
+# ====================== Utilities ======================
+
+def send_telegram(message: str) -> int:
+    """Send message to Telegram"""
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        data = {
+            "chat_id": CHAT_ID, 
+            "text": message,
+            "parse_mode": "HTML"
+        }
+        response = requests.post(url, data=data, timeout=20)
+        return response.status_code
+    except Exception as e:
+        print(f"Telegram send error: {e}")
+        return 500
+
+# ====================== Flask Routes ======================
+
+@app.route('/health', methods=['GET', 'HEAD'])
+def health_check():
+    """Health check endpoint for monitoring services"""
+    return Response("OK", status=200, headers={
+        "Content-Type": "text/plain",
+        "Cache-Control": "no-cache"
+    })
