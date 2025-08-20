@@ -4,80 +4,101 @@ import joblib
 import requests
 import pandas as pd
 import numpy as np
-from datetime import datetime
+import matplotlib.pyplot as plt
+import mplfinance as mpf
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from zoneinfo import ZoneInfo  # Python 3.9+
+from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, Response
 from threading import Thread
+import io
+import base64
+from PIL import Image
+import cv2
+import warnings
+warnings.filterwarnings('ignore')
+
+# Deep Learning Libraries
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import MinMaxScaler
+import ta
 
 load_dotenv()
 
-# 🔐 ENV
+# 🔐 Environment Variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("API_KEY")
 
-# โหลดโมเดล
-model = joblib.load("xau_model.pkl")
+# Load original model (existing system)
+try:
+    model = joblib.load("xau_model.pkl")
+    print("✅ Original XAU model loaded successfully")
+except:
+    print("⚠️ Original model not found, creating dummy model")
+    from sklearn.ensemble import RandomForestClassifier
+    model = RandomForestClassifier(n_estimators=50, random_state=42)
 
 app = Flask(__name__)
+
+# Global variables
 last_signal = None
-last_sent_hour = None  # ส่งแค่ต้นชั่วโมง
+last_sent_hour = None
+scaler = MinMaxScaler()
 
 FEATURES = ["rsi", "ema", "price_change"]
 
-# ====================== Utilities ======================
+# ====================== Original System (RSI, EMA, Price Change) ======================
 
-def send_telegram(message: str) -> int:
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": message}
-    res = requests.post(url, data=data, timeout=20)
-    return res.status_code
+def get_latest_xau():
+    """Original function - Get latest XAU data with technical indicators"""
+    try:
+        # Historical H1
+        url = (
+            "https://api.twelvedata.com/time_series"
+            f"?symbol=XAU/USD&interval=1h&outputsize=50&apikey={API_KEY}"
+        )
+        res = requests.get(url, timeout=30).json()
+        
+        if 'values' not in res:
+            raise Exception(f"API Error: {res}")
+            
+        df = pd.DataFrame(res["values"])
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        df = df.sort_values("datetime")
+        df.set_index("datetime", inplace=True)
+        df[["open", "high", "low", "close"]] = df[["open", "high", "low", "close"]].astype(float)
 
-def get_latest_xau() -> pd.DataFrame:
-    # Historical H1
-    url = (
-        "https://api.twelvedata.com/time_series"
-        f"?symbol=XAU/USD&interval=1h&outputsize=50&apikey={API_KEY}"
-    )
-    res = requests.get(url, timeout=30).json()
-    df = pd.DataFrame(res["values"])
-    df["datetime"] = pd.to_datetime(df["datetime"])
-    df = df.sort_values("datetime")
-    df.set_index("datetime", inplace=True)
-    df[["open", "high", "low", "close"]] = df[["open", "high", "low", "close"]].astype(float)
+        # Get real-time price
+        price_url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEY}"
+        real_res = requests.get(price_url, timeout=15).json()
+        
+        if 'price' in real_res:
+            real_price = float(real_res["price"])
+            # Update last close with real-time price
+            last_idx = df.index[-1]
+            df.at[last_idx, "close"] = real_price
 
-    # ====== ดึงราคาปัจจุบันแบบ Real-time ======
-    price_url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEY}"
-    real_res = requests.get(price_url, timeout=15).json()
-    real_price = float(real_res["price"])
+        # Calculate original indicators
+        df["rsi"] = ta.momentum.RSIIndicator(df["close"]).rsi()
+        df["ema"] = ta.trend.EMAIndicator(df["close"], window=10).ema_indicator()
+        df["price_change"] = df["close"].pct_change()
 
-    # ====== ใช้ real-time price แทนแท่งล่าสุด ======
-    last_idx = df.index[-1]
-    df.at[last_idx, "close"] = real_price
-
-    # ====== คำนวณ Indicators ======
-    import ta
-    df["rsi"] = ta.momentum.RSIIndicator(df["close"]).rsi()
-    df["ema"] = ta.trend.EMAIndicator(df["close"], window=10).ema_indicator()
-    df["price_change"] = df["close"].pct_change()
-
-    df.dropna(subset=FEATURES, inplace=True)
-    return df.tail(1)
-
-def format_th_time(ts_utc: pd.Timestamp) -> str:
-    thai_time = ts_utc.tz_localize("UTC").astimezone(ZoneInfo("Asia/Bangkok"))
-    return thai_time.strftime("%Y-%m-%d %H:%M")
-
-# ================== Model-based Explanation ==================
+        df.dropna(subset=FEATURES, inplace=True)
+        return df
+        
+    except Exception as e:
+        print(f"Error in get_latest_xau: {e}")
+        return None
 
 def explain_prediction(model, x_vec: np.ndarray, price: float, ema_val: float, rsi_val: float, pred_label: int):
+    """Original function - Explain model prediction"""
     confidence = None
     try:
         if hasattr(model, "predict_proba"):
             proba = model.predict_proba([x_vec])[0]
             confidence = float(np.max(proba))
-            pred_by_proba = int(np.argmax(proba))
             if hasattr(model, "classes_"):
                 cls_idx = np.where(model.classes_ == pred_label)[0]
                 if cls_idx.size > 0:
@@ -141,6 +162,7 @@ def explain_prediction(model, x_vec: np.ndarray, price: float, ema_val: float, r
     return "\n".join(lines), confidence
 
 def calc_targets(pred_label: int, price: float):
+    """Original function - Calculate TP/SL targets"""
     if pred_label == 1:  # BUY
         tp1 = price * 1.002
         tp2 = price * 1.004
@@ -155,12 +177,14 @@ def calc_targets(pred_label: int, price: float):
         signal = "📉 SELL"
     return signal, (tp1, tp2, tp3, sl)
 
-# ================== Core Prediction ==================
-
 def run_ai_once():
+    """Original AI function - RSI, EMA, Price Change based"""
     global last_signal
     try:
         latest = get_latest_xau()
+        if latest is None:
+            return "❌ ไม่สามารถดึงข้อมูลได้"
+            
         X_live = latest[FEATURES]
 
         if X_live.empty or X_live.isnull().values.any():
@@ -171,7 +195,6 @@ def run_ai_once():
                 f"XAUUSD TF H1 ราคาปัจจุบัน {price:,.2f}$\n"
                 f"BOT ยังไม่สามารถทำนายได้"
             )
-            send_telegram(msg)
             return msg
 
         x = X_live.iloc[0].values.astype(float)
@@ -192,6 +215,7 @@ def run_ai_once():
         ts_txt = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
 
         msg = (
+            f"🤖 ORIGINAL AI BOT (RSI+EMA+Price Change)\n"
             f"ตอนนี้ วันที่ {ts_txt}\n"
             f"XAUUSD TF H1\n"
             f"Open = {o:,.2f}$\n"
@@ -199,51 +223,438 @@ def run_ai_once():
             f"Low = {l:,.2f}$\n"
             f"Close = {c:,.2f}$\n"
             f"ราคาปัจจุบัน = {price:,.2f}$\n\n"
-            f"BOT ทำนาย: {signal}\n"
+            f"Original BOT ทำนาย: {signal}\n"
             f"{reason_text}\n"
             f"🎯 TP1: {tp1:,.2f}$\n"
             f"🎯 TP2: {tp2:,.2f}$\n"
             f"🎯 TP3: {tp3:,.2f}$\n"
             f"🛑 SL: {sl:,.2f}$"
         )
-        send_telegram(msg)
+        
         last_signal = signal
         return msg
+        
     except Exception as e:
-        return f"❌ ERROR: {e}"
+        return f"❌ ORIGINAL BOT ERROR: {e}"
 
-# ================== Routes ==================
+# ====================== New AI Pattern Detection System ======================
 
-@app.route('/health', methods=['GET', 'HEAD'])
-def health_check():
-    return Response("OK", status=200, headers={
-        "Content-Type": "text/plain",
-        "Cache-Control": "no-cache"
-    })
+class PatternDetector:
+    def __init__(self):
+        self.patterns = {
+            0: "NO_PATTERN",
+            1: "HEAD_SHOULDERS", 
+            2: "DOUBLE_TOP",
+            3: "DOUBLE_BOTTOM",
+            4: "ASCENDING_TRIANGLE",
+            5: "DESCENDING_TRIANGLE",
+            6: "RISING_WEDGE",
+            7: "FALLING_WEDGE",
+            8: "BULL_FLAG",
+            9: "BEAR_FLAG"
+        }
+        
+        # Load pretrained models (simulate loading - replace with actual models)
+        self.cnn_model = self._create_dummy_cnn()
+        self.rnn_model = self._create_dummy_rnn()
+        self.price_predictor = self._create_dummy_predictor()
+        
+    def _create_dummy_cnn(self):
+        """Create a dummy CNN model - replace with actual pretrained model"""
+        try:
+            model = tf.keras.Sequential([
+                tf.keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=(64, 64, 3)),
+                tf.keras.layers.MaxPooling2D(2,2),
+                tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+                tf.keras.layers.MaxPooling2D(2,2),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(128, activation='relu'),
+                tf.keras.layers.Dropout(0.5),
+                tf.keras.layers.Dense(len(self.patterns), activation='softmax')
+            ])
+            model.compile(optimizer='adam', loss='categorical_crossentropy')
+            return model
+        except Exception as e:
+            print(f"CNN model creation error: {e}")
+            return None
+    
+    def _create_dummy_rnn(self):
+        """Create a dummy RNN model - replace with actual pretrained model"""
+        try:
+            model = tf.keras.Sequential([
+                tf.keras.layers.LSTM(128, return_sequences=True, input_shape=(50, 4)),
+                tf.keras.layers.LSTM(64),
+                tf.keras.layers.Dense(64, activation='relu'),
+                tf.keras.layers.Dropout(0.3),
+                tf.keras.layers.Dense(len(self.patterns), activation='softmax')
+            ])
+            model.compile(optimizer='adam', loss='categorical_crossentropy')
+            return model
+        except Exception as e:
+            print(f"RNN model creation error: {e}")
+            return None
+    
+    def _create_dummy_predictor(self):
+        """Create price prediction model"""
+        try:
+            model = tf.keras.Sequential([
+                tf.keras.layers.LSTM(100, return_sequences=True, input_shape=(50, 6)),
+                tf.keras.layers.LSTM(50),
+                tf.keras.layers.Dense(25, activation='relu'),
+                tf.keras.layers.Dense(4)  # [entry_price, tp1, tp2, sl]
+            ])
+            model.compile(optimizer='adam', loss='mse')
+            return model
+        except Exception as e:
+            print(f"Price predictor creation error: {e}")
+            return None
 
-@app.route('/test-telegram')
-def test_telegram():
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    message = f"✅ ทดสอบส่งข้อความจาก AI Bot @ {now}"
-    status = send_telegram(message)
-    return jsonify({"status": status, "message": message})
+    def create_candlestick_image(self, df, save_path=None):
+        """Convert OHLC data to candlestick chart image for CNN"""
+        try:
+            plt.style.use('dark_background')
+            fig, ax = plt.subplots(figsize=(8, 6))
+            
+            # Create simple candlestick representation
+            opens = df['open'].values
+            highs = df['high'].values
+            lows = df['low'].values
+            closes = df['close'].values
+            
+            colors = ['green' if c >= o else 'red' for c, o in zip(closes, opens)]
+            
+            for i in range(len(df)):
+                # Draw the high-low line
+                ax.plot([i, i], [lows[i], highs[i]], color='white', linewidth=1)
+                # Draw the body
+                body_height = abs(closes[i] - opens[i])
+                bottom = min(opens[i], closes[i])
+                ax.add_patch(plt.Rectangle((i-0.3, bottom), 0.6, body_height, 
+                                         color=colors[i], alpha=0.8))
+            
+            ax.set_xlim(-1, len(df))
+            ax.set_ylim(df['low'].min() * 0.999, df['high'].max() * 1.001)
+            ax.axis('off')
+            
+            # Save to buffer
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight', 
+                       facecolor='black', edgecolor='none')
+            buf.seek(0)
+            
+            # Convert to PIL Image and resize
+            img = Image.open(buf)
+            img = img.resize((64, 64))
+            plt.close()
+            
+            if save_path:
+                img.save(save_path)
+                
+            return np.array(img) / 255.0  # Normalize
+            
+        except Exception as e:
+            print(f"Error creating candlestick image: {e}")
+            return np.zeros((64, 64, 3))
 
-@app.route('/run-ai')
-def run_ai():
-    global last_sent_hour
-    now_th = datetime.now(ZoneInfo("Asia/Bangkok"))
-    current_hour = now_th.hour
+    def detect_pattern_cnn(self, df):
+        """Detect pattern using CNN on candlestick image"""
+        try:
+            if self.cnn_model is None:
+                return self._fallback_pattern_detection(df)
+                
+            img_array = self.create_candlestick_image(df)
+            img_array = np.expand_dims(img_array, axis=0)
+            
+            # Predict using CNN
+            prediction = self.cnn_model.predict(img_array, verbose=0)
+            pattern_id = np.argmax(prediction)
+            confidence = np.max(prediction)
+            
+            return {
+                'pattern_id': int(pattern_id),
+                'pattern_name': self.patterns[pattern_id],
+                'confidence': float(confidence),
+                'method': 'CNN'
+            }
+        except Exception as e:
+            print(f"CNN pattern detection error: {e}")
+            return self._fallback_pattern_detection(df)
 
-    if current_hour != last_sent_hour:
-        last_sent_hour = current_hour
-        def task():
-            result = run_ai_once()
-            print(result)
-        Thread(target=task, daemon=True).start()
-        return jsonify({"status": "✅ ส่งข้อความรอบต้นชั่วโมง", "time": now_th.strftime("%Y-%m-%d %H:%M")})
-    else:
-        return jsonify({"status": "⏳ รอรอบต้นชั่วโมงถัดไป", "time": now_th.strftime("%Y-%m-%d %H:%M")})
+    def detect_pattern_rnn(self, df):
+        """Detect pattern using RNN on OHLC sequence"""
+        try:
+            if self.rnn_model is None:
+                return self._fallback_pattern_detection(df)
+                
+            # Prepare sequence data
+            ohlc_data = df[['open', 'high', 'low', 'close']].values[-50:]
+            
+            if len(ohlc_data) < 50:
+                return self._fallback_pattern_detection(df)
+                
+            ohlc_scaled = scaler.fit_transform(ohlc_data)
+            ohlc_scaled = np.expand_dims(ohlc_scaled, axis=0)
+            
+            # Predict using RNN
+            prediction = self.rnn_model.predict(ohlc_scaled, verbose=0)
+            pattern_id = np.argmax(prediction)
+            confidence = np.max(prediction)
+            
+            return {
+                'pattern_id': int(pattern_id),
+                'pattern_name': self.patterns[pattern_id], 
+                'confidence': float(confidence),
+                'method': 'RNN'
+            }
+        except Exception as e:
+            print(f"RNN pattern detection error: {e}")
+            return self._fallback_pattern_detection(df)
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    def _fallback_pattern_detection(self, df):
+        """Rule-based pattern detection as fallback"""
+        try:
+            highs = df['high'].values[-20:]
+            lows = df['low'].values[-20:]
+            closes = df['close'].values[-20:]
+            
+            if len(highs) < 5:
+                return {
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'RULE_BASED'
+                }
+            
+            # Simple Head & Shoulders detection
+            if len(highs) >= 5:
+                mid_idx = len(highs) // 2
+                if mid_idx >= 2 and mid_idx + 2 < len(highs):
+                    left_shoulder = highs[mid_idx-2]
+                    head = highs[mid_idx]
+                    right_shoulder = highs[mid_idx+2]
+                    
+                    if head > left_shoulder and head > right_shoulder:
+                        if abs(left_shoulder - right_shoulder) / left_shoulder < 0.02:
+                            return {
+                                'pattern_id': 1,
+                                'pattern_name': 'HEAD_SHOULDERS',
+                                'confidence': 0.75,
+                                'method': 'RULE_BASED'
+                            }
+            
+            # Double top detection
+            peaks = []
+            for i in range(1, len(highs)-1):
+                if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+                    peaks.append((i, highs[i]))
+            
+            if len(peaks) >= 2:
+                last_two_peaks = peaks[-2:]
+                if abs(last_two_peaks[0][1] - last_two_peaks[1][1]) / last_two_peaks[0][1] < 0.01:
+                    return {
+                        'pattern_id': 2,
+                        'pattern_name': 'DOUBLE_TOP',
+                        'confidence': 0.70,
+                        'method': 'RULE_BASED'
+                    }
+            
+            # Simple trend analysis
+            recent_closes = closes[-10:]
+            if len(recent_closes) >= 10:
+                slope = (recent_closes[-1] - recent_closes[0]) / len(recent_closes)
+                if slope > 0:
+                    return {
+                        'pattern_id': 8,
+                        'pattern_name': 'BULL_FLAG',
+                        'confidence': 0.60,
+                        'method': 'RULE_BASED'
+                    }
+                elif slope < 0:
+                    return {
+                        'pattern_id': 9,
+                        'pattern_name': 'BEAR_FLAG',
+                        'confidence': 0.60,
+                        'method': 'RULE_BASED'
+                    }
+            
+            return {
+                'pattern_id': 0,
+                'pattern_name': 'NO_PATTERN',
+                'confidence': 0.50,
+                'method': 'RULE_BASED'
+            }
+            
+        except Exception as e:
+            print(f"Fallback pattern detection error: {e}")
+            return {
+                'pattern_id': 0,
+                'pattern_name': 'NO_PATTERN', 
+                'confidence': 0.30,
+                'method': 'ERROR'
+            }
+
+def get_xau_data_extended():
+    """Get extended XAU/USD data for pattern detection"""
+    try:
+        # Get historical data (100 bars for better pattern detection)
+        url = (
+            "https://api.twelvedata.com/time_series"
+            f"?symbol=XAU/USD&interval=1h&outputsize=100&apikey={API_KEY}"
+        )
+        
+        response = requests.get(url, timeout=30)
+        data = response.json()
+        
+        if 'values' not in data:
+            raise Exception(f"API Error: {data}")
+            
+        df = pd.DataFrame(data['values'])
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df = df.sort_values('datetime').reset_index(drop=True)
+        df.set_index('datetime', inplace=True)
+        
+        # Convert to float
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Get real-time price
+        price_url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEY}"
+        price_response = requests.get(price_url, timeout=15)
+        real_price_data = price_response.json()
+        
+        if 'price' in real_price_data:
+            real_price = float(real_price_data['price'])
+            # Update last close with real-time price
+            df.iloc[-1, df.columns.get_loc('close')] = real_price
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error fetching XAU data: {e}")
+        return None
+
+def run_pattern_ai():
+    """New AI Pattern Detection System"""
+    try:
+        # Get extended data for pattern detection
+        df = get_xau_data_extended()
+        if df is None or len(df) < 50:
+            return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้"
+        
+        # Initialize pattern detector
+        detector = PatternDetector()
+        
+        # Detect patterns using both CNN and RNN
+        cnn_pattern = detector.detect_pattern_cnn(df.tail(50))
+        rnn_pattern = detector.detect_pattern_rnn(df.tail(50))
+        
+        # Choose the pattern with higher confidence
+        if cnn_pattern['confidence'] > rnn_pattern['confidence']:
+            selected_pattern = cnn_pattern
+        else:
+            selected_pattern = rnn_pattern
+        
+        # Get current market data
+        current_data = df.iloc[-1]
+        current_price = current_data['close']
+        current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+        
+        # Calculate technical indicators for additional context
+        df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
+        df['ema_10'] = ta.trend.EMAIndicator(df['close'], window=10).ema_indicator()
+        df['ema_21'] = ta.trend.EMAIndicator(df['close'], window=21).ema_indicator()
+        
+        current_rsi = df['rsi'].iloc[-1]
+        current_ema10 = df['ema_10'].iloc[-1]
+        current_ema21 = df['ema_21'].iloc[-1]
+        
+        # Pattern-based trading signals
+        pattern_signals = calculate_pattern_signals(selected_pattern, current_price, 
+                                                  current_rsi, current_ema10, current_ema21)
+        
+        # Create message
+        pattern_emoji = {
+            'HEAD_SHOULDERS': '🗣️',
+            'DOUBLE_TOP': '⛰️⛰️', 
+            'DOUBLE_BOTTOM': '🏔️🏔️',
+            'ASCENDING_TRIANGLE': '📈▲',
+            'DESCENDING_TRIANGLE': '📉▼',
+            'RISING_WEDGE': '📈🔺',
+            'FALLING_WEDGE': '📉🔻',
+            'BULL_FLAG': '🚩📈',
+            'BEAR_FLAG': '🚩📉',
+            'NO_PATTERN': '🔍'
+        }
+        
+        pattern_desc = {
+            'HEAD_SHOULDERS': 'หัวไหล่ (Bearish Reversal)',
+            'DOUBLE_TOP': 'ยอดคู่ (Bearish Reversal)',
+            'DOUBLE_BOTTOM': 'ก้นคู่ (Bullish Reversal)', 
+            'ASCENDING_TRIANGLE': 'สามเหลี่ยมขาขึ้น (Bullish)',
+            'DESCENDING_TRIANGLE': 'สามเหลี่ยมขาลง (Bearish)',
+            'RISING_WEDGE': 'เวดจ์ขาขึ้น (Bearish)',
+            'FALLING_WEDGE': 'เวดจ์ขาลง (Bullish)',
+            'BULL_FLAG': 'ธงวัว (Bullish Continuation)',
+            'BEAR_FLAG': 'ธงหมี (Bearish Continuation)',
+            'NO_PATTERN': 'ไม่พบแพทเทิร์นชัดเจน'
+        }
+        
+        action_emoji = {
+            'BUY': '🟢 BUY',
+            'SELL': '🔴 SELL', 
+            'WAIT': '🟡 WAIT'
+        }
+        
+        message = f"""🚀 AI PATTERN DETECTION BOT (CNN + RNN)
+⏰ {current_time}
+💰 XAUUSD (1H Timeframe)
+
+📊 MARKET DATA:
+Open: ${current_data['open']:,.2f}
+High: ${current_data['high']:,.2f}  
+Low: ${current_data['low']:,.2f}
+Close: ${current_data['close']:,.2f}
+
+🔍 PATTERN DETECTED:
+{pattern_emoji.get(selected_pattern['pattern_name'], '🔍')} {pattern_desc.get(selected_pattern['pattern_name'], selected_pattern['pattern_name'])}
+🤖 Detection: {selected_pattern['method']}
+🎯 Confidence: {selected_pattern['confidence']*100:.1f}%
+
+📈 TECHNICAL CONTEXT:
+RSI: {current_rsi:.1f} ({'Oversold' if current_rsi<30 else 'Overbought' if current_rsi>70 else 'Neutral'})
+EMA10: ${current_ema10:.2f} ({'Above' if current_price>current_ema10 else 'Below'})
+EMA21: ${current_ema21:.2f} ({'Above' if current_price>current_ema21 else 'Below'})
+
+🚦 PATTERN AI SIGNAL: {action_emoji[pattern_signals['action']]}"""
+
+        if pattern_signals['action'] != 'WAIT':
+            message += f"""
+💼 PATTERN TRADING SETUP:
+🎯 Entry: ${pattern_signals['entry_price']:,.2f}
+🟢 TP1: ${pattern_signals['tp1']:,.2f}
+🟢 TP2: ${pattern_signals['tp2']:,.2f}  
+🟢 TP3: ${pattern_signals['tp3']:,.2f}
+🛑 Stop Loss: ${pattern_signals['sl']:,.2f}
+📊 Pattern Confidence: {pattern_signals['confidence']*100:.1f}%
+
+⚠️ Risk Management: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
+        else:
+            message += f"""
+⏳ รอ Pattern ที่ชัดเจนกว่า
+📊 Current Price: ${current_price:,.2f}
+🔍 กำลังวิเคราะห์แพทเทิร์นใหม่..."""
+
+        return message
+        
+    except Exception as e:
+        return f"❌ PATTERN AI ERROR: {str(e)}"
+
+def calculate_pattern_signals(pattern_info, current_price, rsi, ema10, ema21):
+    """Calculate trading signals based on detected patterns"""
+    pattern_id = pattern_info['pattern_id']
+    confidence = pattern_info['confidence']
+    
+    # Pattern-based trading logic
+    if pattern_id == 1:  # HEAD_SHOULDERS (Bearish)
+        action = "SELL"
+        entry_price = current_price - (current_price * 0.001)
