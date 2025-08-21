@@ -275,7 +275,7 @@ def run_ai_once_shared(shared_df):
             f"🎯 BOT ทำนาย: {signal}\n"
             f"{reason_text}\n\n"
             f"🎯 TP1: ${tp1:,.2f} | TP2: ${tp2:,.2f}\n"
-            f"🎯 TP3: ${tp3:,.2f} | 🛑 SL: ${sl:,.2f}"
+            f"🎯 TP3: ${tp3:,.2f} | 🔴 SL: ${sl:,.2f}"
         )
         
         last_signal = signal
@@ -509,7 +509,7 @@ EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_pr
 💼 TRADING SETUP:
 🎯 Entry: ${trading_signals['entry_price']:,.2f}
 🟢 TP1: ${trading_signals['tp1']:,.2f} | TP2: ${trading_signals['tp2']:,.2f} | TP3: ${trading_signals['tp3']:,.2f}
-🛑 SL: ${trading_signals['sl']:,.2f}
+🔴 SL: ${trading_signals['sl']:,.2f}
 📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
 
 ⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
