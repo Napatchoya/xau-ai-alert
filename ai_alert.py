@@ -59,7 +59,12 @@ app = Flask(__name__)
 
 # Global variables
 last_signal = None
-last_sent_hour = None
+last_original_sent_hour = None  # สำหรับระบบเก่า
+last_pattern_sent_hour = None   # สำหรับระบบ Pattern AI
+message_sent_this_hour = {      # เพิ่มตัวตรวจสอบว่าส่งข้อความไหนแล้วบ้าง
+    'original': None,
+    'pattern': None
+}
 
 FEATURES = ["rsi", "ema", "price_change"]
 
@@ -618,36 +623,58 @@ def test_telegram():
 
 @app.route('/run-ai')
 def run_ai():
-    """Run original AI system (RSI+EMA+Price Change)"""
-    global last_sent_hour
+    """Run original AI system - Send Telegram once per hour"""
+    global last_original_sent_hour, message_sent_this_hour
     
     try:
         now_th = datetime.now(ZoneInfo("Asia/Bangkok"))
         current_hour = now_th.hour
-
-        if current_hour != last_sent_hour:
-            last_sent_hour = current_hour
+        current_time = now_th.strftime("%Y-%m-%d %H:%M")
+        
+        # Reset message tracking เมื่อเปลี่ยนชั่วโมง
+        if current_hour != last_original_sent_hour:
+            last_original_sent_hour = current_hour
+            message_sent_this_hour['original'] = None  # Reset status
+        
+        # ตรวจสอบว่าส่งข้อความในชั่วโมงนี้แล้วหรือยัง
+        if message_sent_this_hour['original'] != current_hour:
+            # ส่งสัญญาณจริง (ครั้งแรกในชั่วโมงนั้น)
+            message_sent_this_hour['original'] = current_hour
             
-            def task():
+            def send_original_task():
                 try:
                     result = run_ai_once()
-                    send_telegram(result)
-                    print(f"Original AI Result: {result[:200]}...")
+                    send_status = send_telegram(result)
+                    print(f"✅ [{current_time}] Original AI sent to Telegram: Status {send_status}")
+                    print(f"Original message preview: {result[:150]}...")
                 except Exception as e:
-                    print(f"Original AI Task Error: {e}")
+                    print(f"❌ [{current_time}] Original AI send error: {e}")
+                    error_msg = f"❌ Original AI Error @ {current_time}\nError: {str(e)[:100]}"
+                    send_telegram(error_msg)
             
-            Thread(target=task, daemon=True).start()
+            Thread(target=send_original_task, daemon=True).start()
             
             return jsonify({
-                "status": "✅ Original AI Bot executed",
-                "time": now_th.strftime("%Y-%m-%d %H:%M"),
-                "system": "RSI+EMA+Price Change"
+                "status": "✅ Original AI - Signal Sent", 
+                "mode": "TELEGRAM_SENT",
+                "time": current_time,
+                "hour": current_hour,
+                "telegram_sent": True,
+                "system": "RSI+EMA+Price Change",
+                "note": f"🤖 ORIGINAL signal sent to Telegram at {current_time}",
+                "sent_count_this_hour": 1
             })
         else:
+            # Ping ครั้งที่ 2+ ในชั่วโมงเดียวกัน (แค่ keep alive)
             return jsonify({
-                "status": "⏳ รอรอบต้นชั่วโมงถัดไป",
-                "time": now_th.strftime("%Y-%m-%d %H:%M"),
-                "next_run": f"{current_hour + 1}:00"
+                "status": "✅ Original AI - Keep Alive",
+                "mode": "KEEP_ALIVE", 
+                "time": current_time,
+                "hour": current_hour,
+                "telegram_sent": False,
+                "system": "RSI+EMA+Price Change",
+                "note": f"Original signal already sent in hour {current_hour}, keeping service alive",
+                "next_signal_time": f"{current_hour + 1}:00"
             })
             
     except Exception as e:
@@ -658,36 +685,58 @@ def run_ai():
 
 @app.route('/run-pattern-bot')
 def run_pattern_bot():
-    """Run pattern AI system (CNN+RNN+Patterns)"""
-    global last_sent_hour
+    """Run pattern AI system - Send Telegram once per hour"""
+    global last_pattern_sent_hour, message_sent_this_hour
     
     try:
         now_th = datetime.now(ZoneInfo("Asia/Bangkok"))
         current_hour = now_th.hour
+        current_time = now_th.strftime("%Y-%m-%d %H:%M")
         
-        if current_hour != last_sent_hour:
-            last_sent_hour = current_hour
+        # Reset message tracking เมื่อเปลี่ยนชั่วโมง
+        if current_hour != last_pattern_sent_hour:
+            last_pattern_sent_hour = current_hour
+            message_sent_this_hour['pattern'] = None  # Reset status
+        
+        # ตรวจสอบว่าส่งข้อความในชั่วโมงนี้แล้วหรือยัง
+        if message_sent_this_hour['pattern'] != current_hour:
+            # ส่งสัญญาณจริง (ครั้งแรกในชั่วโมงนั้น)
+            message_sent_this_hour['pattern'] = current_hour
             
-            def task():
+            def send_pattern_task():
                 try:
                     result = run_pattern_ai()
-                    send_telegram(result)
-                    print(f"Pattern AI Result: {result[:200]}...")
+                    send_status = send_telegram(result)
+                    print(f"✅ [{current_time}] Pattern AI sent to Telegram: Status {send_status}")
+                    print(f"Pattern message preview: {result[:150]}...")
                 except Exception as e:
-                    print(f"Pattern AI Task Error: {e}")
+                    print(f"❌ [{current_time}] Pattern AI send error: {e}")
+                    error_msg = f"❌ Pattern AI Error @ {current_time}\nError: {str(e)[:100]}"
+                    send_telegram(error_msg)
             
-            Thread(target=task, daemon=True).start()
+            Thread(target=send_pattern_task, daemon=True).start()
             
             return jsonify({
-                "status": "✅ Pattern AI Bot executed", 
-                "time": now_th.strftime("%Y-%m-%d %H:%M"),
-                "system": "CNN+RNN+Patterns"
+                "status": "✅ Pattern AI - Signal Sent", 
+                "mode": "TELEGRAM_SENT",
+                "time": current_time,
+                "hour": current_hour,
+                "telegram_sent": True,
+                "system": "CNN+RNN+Patterns",
+                "note": f"🚀 PATTERN signal sent to Telegram at {current_time}",
+                "sent_count_this_hour": 1
             })
         else:
+            # Ping ครั้งที่ 2+ ในชั่วโมงเดียวกัน (แค่ keep alive)
             return jsonify({
-                "status": "⏳ รอรอบต้นชั่วโมงถัดไป",
-                "time": now_th.strftime("%Y-%m-%d %H:%M"),
-                "next_run": f"{current_hour + 1}:00"
+                "status": "✅ Pattern AI - Keep Alive",
+                "mode": "KEEP_ALIVE", 
+                "time": current_time,
+                "hour": current_hour,
+                "telegram_sent": False,
+                "system": "CNN+RNN+Patterns",
+                "note": f"Pattern signal already sent in hour {current_hour}, keeping service alive",
+                "next_signal_time": f"{current_hour + 1}:00"
             })
             
     except Exception as e:
@@ -748,13 +797,26 @@ def pattern_status():
 def system_status():
     """Get overall system status"""
     try:
+        now_th = datetime.now(ZoneInfo("Asia/Bangkok"))
+        current_hour = now_th.hour
+        
         status_info = {
             "app": "XAU AI Trading Bot",
-            "version": "2.0 - Hybrid System",
+            "version": "2.0 - Dual Signal System",
             "timestamp": datetime.now().isoformat(),
+            "current_hour": current_hour,
+            "bangkok_time": now_th.strftime("%Y-%m-%d %H:%M:%S"),
             "systems": {
                 "original": "RSI + EMA + Price Change",
                 "pattern": "Rule-based Pattern Detection"
+            },
+            "message_status": {
+                "original_sent_this_hour": message_sent_this_hour.get('original') == current_hour,
+                "pattern_sent_this_hour": message_sent_this_hour.get('pattern') == current_hour,
+                "total_messages_this_hour": sum([
+                    1 if message_sent_this_hour.get('original') == current_hour else 0,
+                    1 if message_sent_this_hour.get('pattern') == current_hour else 0
+                ])
             },
             "libraries": {
                 "tensorflow": HAS_TENSORFLOW,
@@ -828,16 +890,18 @@ def home():
             
             <div class="endpoint">
                 <span class="method">GET</span> <strong>/run-ai</strong>
-                <p>Execute original AI trading system (RSI + EMA + Price Change)</p>
-                <p><em>Frequency:</em> Once per hour</p>
-                <p><em>Output:</em> Telegram message with BUY/SELL signals</p>
+                <p><span class="status">📡 ACTIVE MODE:</span> Execute original AI system with Telegram alerts</p>
+                <p><em>Frequency:</em> Every 3 minutes (recommended)</p>
+                <p><em>Output:</em> Telegram message <strong>once per hour</strong> with RSI+EMA+Price Change signals</p>
+                <p><em>Logic:</em> First ping of each hour = send signal, subsequent pings = keep alive</p>
             </div>
             
             <div class="endpoint">
                 <span class="method">GET</span> <strong>/run-pattern-bot</strong>
-                <p>Execute pattern AI trading system (Chart Patterns + Technical Analysis)</p>
-                <p><em>Frequency:</em> Once per hour</p>
-                <p><em>Output:</em> Telegram message with pattern-based signals</p>
+                <p><span class="status">📡 ACTIVE MODE:</span> Execute pattern AI trading system with Telegram alerts</p>
+                <p><em>Frequency:</em> Every 3 minutes (recommended)</p>
+                <p><em>Output:</em> Telegram message <strong>once per hour</strong> with pattern-based signals</p>
+                <p><em>Logic:</em> First ping of each hour = send signal, subsequent pings = keep alive</p>
             </div>
             
             <div class="endpoint">
@@ -872,13 +936,29 @@ def home():
                 <li><code>API_KEY</code> - TwelveData API key for market data</li>
             </ul>
             
-            <h2>📈 Usage</h2>
-            <p>Use monitoring services like UptimeRobot to ping:</p>
-            <ul>
-                <li><code>/health</code> for keeping the service alive</li>
-                <li><code>/run-ai</code> for original system signals</li>
-                <li><code>/run-pattern-bot</code> for pattern-based signals</li>
-            </ul>
+            <h2>📈 Recommended UptimeRobot Setup</h2>
+            <div style="background-color: #2a2a2a; padding: 20px; border-radius: 8px; border-left: 4px solid #00ff88;">
+                <h3 style="margin-top: 0; color: #00ff88;">🎯 Dual System Strategy:</h3>
+                <p><strong>Monitor 1:</strong> <code>/run-ai</code> - Every 3 minutes</p>
+                <p style="margin-left: 20px;">→ Sends ORIGINAL system signals <strong>once per hour</strong></p>
+                
+                <p><strong>Monitor 2:</strong> <code>/run-pattern-bot</code> - Every 3 minutes</p>
+                <p style="margin-left: 20px;">→ Sends PATTERN AI signals <strong>once per hour</strong></p>
+                
+                <p style="color: #ffaa00;"><strong>Result:</strong> <span style="color: #00ff88;">Exactly 2 trading signals per hour</span> via Telegram</p>
+                <p style="color: #ffaa00;"><strong>Benefit:</strong> Compare both systems + Service never sleeps + No duplicate messages</p>
+                
+                <h4 style="color: #00ff88;">📱 Expected Telegram Messages per Hour:</h4>
+                <p>🤖 <strong>Original AI Signal</strong> - RSI + EMA + Price Change analysis</p>
+                <p>🚀 <strong>Pattern AI Signal</strong> - CNN + RNN + Pattern detection</p>
+                <p style="color: #666;">Each system sends exactly once per hour, independent tracking</p>
+                
+                <h4 style="color: #ffaa00;">🔧 How It Works:</h4>
+                <p style="margin-left: 10px;">• First ping to <code>/run-ai</code> in each hour = Send Original signal</p>
+                <p style="margin-left: 10px;">• First ping to <code>/run-pattern-bot</code> in each hour = Send Pattern signal</p>
+                <p style="margin-left: 10px;">• Subsequent pings = Keep service alive only</p>
+                <p style="margin-left: 10px;">• Independent tracking prevents interference between systems</p>
+            </div>
             
             <h2>⚠️ Risk Disclaimer</h2>
             <p class="warning">This is an automated trading bot for educational purposes. Always use proper risk management and never risk more than 1-2% of your account per trade. Past performance does not guarantee future results.</p>
