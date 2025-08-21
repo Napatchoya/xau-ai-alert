@@ -154,10 +154,9 @@ def get_latest_xau():
         print(f"Error in get_latest_xau: {e}")
         return None
 
-def get_shared_xau_data():
-    """Get shared XAU data for both systems - ใช้ข้อมูลชุดเดียวกัน"""
+def get_xau_data_extended():
+    """Get extended XAU data for pattern detection"""
     try:
-        # Get historical data (100 bars เพื่อให้ indicators ถูกต้อง)
         url = (
             "https://api.twelvedata.com/time_series"
             f"?symbol=XAU/USD&interval=1h&outputsize=100&apikey={API_KEY}"
@@ -174,11 +173,10 @@ def get_shared_xau_data():
         df = df.sort_values('datetime').reset_index(drop=True)
         df.set_index('datetime', inplace=True)
         
-        # Convert to float
         for col in ['open', 'high', 'low', 'close']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # Get real-time price (เรียกครั้งเดียว)
+        # Get real-time price
         try:
             price_url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEY}"
             price_response = requests.get(price_url, timeout=15)
@@ -186,22 +184,14 @@ def get_shared_xau_data():
             
             if 'price' in real_price_data:
                 real_price = float(real_price_data['price'])
-                # Update last close with real-time price
                 df.iloc[-1, df.columns.get_loc('close')] = real_price
-                print(f"📊 Real-time price updated: ${real_price:,.2f}")
-        except Exception as e:
-            print(f"⚠️ Real-time price fetch failed: {e}")
-        
-        # Calculate shared indicators
-        df["rsi"] = calculate_rsi(df["close"])
-        df["ema"] = calculate_ema(df["close"], 10)
-        df["ema_21"] = calculate_ema(df["close"], 21)
-        df["price_change"] = df["close"].pct_change()
+        except:
+            print("⚠️ Real-time price fetch failed")
         
         return df
         
     except Exception as e:
-        print(f"Error fetching shared XAU data: {e}")
+        print(f"Error fetching extended XAU data: {e}")
         return None
 
 # ====================== Original System Functions ======================
@@ -253,45 +243,37 @@ def calc_targets(pred_label: int, price: float):
         signal = "📉 SELL"
     return signal, (tp1, tp2, tp3, sl)
 
-def run_ai_once_shared(shared_df):
-    """Original AI system using shared data"""
+def run_ai_once():
+    """Original AI system"""
     global last_signal
     try:
-        if shared_df is None or len(shared_df) < 20:
+        latest = get_latest_xau()
+        if latest is None or len(latest) < 5:
             return "❌ ไม่สามารถดึงข้อมูลได้"
             
-        # Use shared data และตรวจสอบว่ามี indicators ที่จำเป็น
-        required_features = ["rsi", "ema", "price_change"]
-        df = shared_df.copy()
-        
-        # ตรวจสอบว่า indicators พร้อมใช้งาน
-        df_clean = df.dropna(subset=required_features)
-        if len(df_clean) < 5:
-            current_price = df["close"].iloc[-1]
+        X_live = latest[FEATURES]
+
+        if X_live.empty or X_live.isnull().values.any():
+            price = latest["close"].iloc[0] if len(latest) > 0 else 2500
             ts_txt = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
-            return (
+            msg = (
                 f"🤖 ORIGINAL BOT (RSI+EMA+Price Change)\n"
-                f"⏰ {ts_txt}\n"
-                f"XAUUSD ราคาปัจจุบัน ${current_price:,.2f}\n"
-                f"⚠️ ข้อมูล indicators ไม่เพียงพอ"
+                f"ตอนนี้ วันที่ {ts_txt}\n"
+                f"XAUUSD ราคาปัจจุบัน {price:,.2f}$\n"
+                f"ยังไม่สามารถทำนายได้ (ข้อมูลไม่เพียงพอ)"
             )
+            return msg
 
-        # ใช้ข้อมูลล่าสุดที่มี indicators ครบ
-        latest = df_clean.iloc[-1]
-        
-        x = [latest["rsi"], latest["ema"], latest["price_change"]]
-        x = [val if not pd.isna(val) else 0 for val in x]  # Replace NaN with 0
-        
-        price = latest["close"]
-        ema_val = latest["ema"]
-        rsi_val = latest["rsi"]
+        x = X_live.iloc[0].values.astype(float)
+        price = latest["close"].iloc[0]
+        ema_val = float(latest["ema"].iloc[0])
+        rsi_val = float(latest["rsi"].iloc[0])
 
-        # OHLC data (ใช้จาก shared data)
-        latest_raw = df.iloc[-1]  # ข้อมูลล่าสุด (อาจมี NaN ใน indicators แต่ OHLC ครบ)
-        o = latest_raw["open"]
-        h = latest_raw["high"]
-        l = latest_raw["low"]
-        c = latest_raw["close"]  # Real-time price
+        # OHLC
+        o = latest["open"].iloc[0]
+        h = latest["high"].iloc[0]
+        l = latest["low"].iloc[0]
+        c = latest["close"].iloc[0]
 
         # Prediction
         if model is not None:
@@ -302,7 +284,7 @@ def run_ai_once_shared(shared_df):
         else:
             pred = 1 if rsi_val < 50 else 0
             
-        reason_text, _ = explain_prediction(model, np.array(x), price, ema_val, rsi_val, pred)
+        reason_text, _ = explain_prediction(model, x, price, ema_val, rsi_val, pred)
         signal, (tp1, tp2, tp3, sl) = calc_targets(pred, price)
         ts_txt = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
 
@@ -310,14 +292,13 @@ def run_ai_once_shared(shared_df):
             f"🤖 ORIGINAL BOT (RSI+EMA+Price Change)\n"
             f"⏰ {ts_txt}\n"
             f"💰 XAUUSD TF H1\n"
-            f"📊 SHARED DATA SOURCE\n"
-            f"Open = ${o:,.2f} | High = ${h:,.2f}\n"
-            f"Low = ${l:,.2f} | Close = ${c:,.2f}\n"
-            f"ราคาปัจจุบัน = ${price:,.2f}\n\n"
+            f"Open = {o:,.2f}$ | High = {h:,.2f}$\n"
+            f"Low = {l:,.2f}$ | Close = {c:,.2f}$\n"
+            f"ราคาปัจจุบัน = {price:,.2f}$\n\n"
             f"🎯 BOT ทำนาย: {signal}\n"
             f"{reason_text}\n\n"
-            f"🎯 TP1: ${tp1:,.2f} | TP2: ${tp2:,.2f}\n"
-            f"🎯 TP3: ${tp3:,.2f} | 🛑 SL: ${sl:,.2f}"
+            f"🎯 TP1: {tp1:,.2f}$ | TP2: {tp2:,.2f}$\n"
+            f"🎯 TP3: {tp3:,.2f}$ | 🛑 SL: {sl:,.2f}$"
         )
         
         last_signal = signal
@@ -415,56 +396,79 @@ class SimplePatternDetector:
                 'method': 'ERROR'
             }
 
-    def predict_signals(self, df):
-        """Predict trading signals based on patterns - รับ shared data"""
+    def predict_signals(self, df, pattern_info):
+        """Predict trading signals based on patterns"""
         try:
             current_price = df['close'].iloc[-1]
             
-            # ใช้ indicators ที่คำนวณไว้แล้วใน shared data
+            # Calculate basic indicators
+            df['rsi'] = calculate_rsi(df['close'])
+            df['ema_10'] = calculate_ema(df['close'], 10)
+            df['ema_21'] = calculate_ema(df['close'], 21)
+            
             current_rsi = df['rsi'].iloc[-1] if not pd.isna(df['rsi'].iloc[-1]) else 50
-            current_ema10 = df['ema'].iloc[-1] if not pd.isna(df['ema'].iloc[-1]) else current_price
-            current_ema21 = df['ema_21'].iloc[-1] if not pd.isna(df['ema_21'].iloc[-1]) else current_price
+            current_ema10 = df['ema_10'].iloc[-1]
+            current_ema21 = df['ema_21'].iloc[-1]
             
-            pattern_id = 0  # Default to no pattern
-            confidence = 0.5
+            pattern_id = pattern_info['pattern_id']
+            confidence = pattern_info['confidence']
             
-            # Pattern-based signals (simplified for shared data)
-            if current_rsi < 30 and current_price < current_ema10:
-                action = "BUY"
-                entry_price = current_price + (current_price * 0.0005)
-                tp1 = current_price * 1.003
-                tp2 = current_price * 1.006
-                tp3 = current_price * 1.009
-                sl = current_price * 0.995
+            # Pattern-based signals
+            if pattern_id == 1:  # HEAD_SHOULDERS (Bearish)
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.001)
+                tp1 = current_price * 0.995
+                tp2 = current_price * 0.990  
+                tp3 = current_price * 0.985
+                sl = current_price * 1.010
                 
-            elif current_rsi > 70 and current_price > current_ema10:
+            elif pattern_id == 2:  # DOUBLE_TOP (Bearish)
                 action = "SELL"
                 entry_price = current_price - (current_price * 0.0005)
-                tp1 = current_price * 0.997
-                tp2 = current_price * 0.994
-                tp3 = current_price * 0.991
-                sl = current_price * 1.005
+                tp1 = current_price * 0.996
+                tp2 = current_price * 0.992
+                tp3 = current_price * 0.988
+                sl = current_price * 1.008
                 
-            else:
-                # Default pattern-based signal
-                if current_price > current_ema10 and current_price > current_ema21:
+            elif pattern_id == 3:  # DOUBLE_BOTTOM (Bullish)
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.0005)
+                tp1 = current_price * 1.004
+                tp2 = current_price * 1.008
+                tp3 = current_price * 1.012
+                sl = current_price * 0.992
+                
+            elif pattern_id in [4, 5]:  # ASCENDING_TRIANGLE, BULL_FLAG (Bullish)
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.001)
+                tp1 = current_price * 1.005
+                tp2 = current_price * 1.010
+                tp3 = current_price * 1.015
+                sl = current_price * 0.990
+                
+            else:  # NO_PATTERN - use indicators
+                if current_rsi < 30 and current_price < current_ema10:
                     action = "BUY"
-                    entry_price = current_price + (current_price * 0.001)
-                    tp1 = current_price * 1.005
-                    tp2 = current_price * 1.010
-                    tp3 = current_price * 1.015
-                    sl = current_price * 0.990
-                elif current_price < current_ema10 and current_price < current_ema21:
+                    entry_price = current_price + (current_price * 0.0005)
+                    tp1 = current_price * 1.003
+                    tp2 = current_price * 1.006
+                    tp3 = current_price * 1.009
+                    sl = current_price * 0.995
+                elif current_rsi > 70 and current_price > current_ema10:
                     action = "SELL"
-                    entry_price = current_price - (current_price * 0.001)
-                    tp1 = current_price * 0.995
-                    tp2 = current_price * 0.990
-                    tp3 = current_price * 0.985
-                    sl = current_price * 1.010
+                    entry_price = current_price - (current_price * 0.0005)
+                    tp1 = current_price * 0.997
+                    tp2 = current_price * 0.994
+                    tp3 = current_price * 0.991
+                    sl = current_price * 1.005
                 else:
                     action = "WAIT"
                     entry_price = current_price
                     tp1 = tp2 = tp3 = sl = current_price
+            
+            # Apply confidence filter
+            if confidence < 0.6 and action != "WAIT":
+                action = "WAIT"
                 
             return {
                 'action': action,
@@ -497,17 +501,18 @@ class SimplePatternDetector:
                 'ema21': round(current_price, 2)
             }
 
-def run_pattern_ai_shared(shared_df):
-    """Pattern AI system using shared data"""
+def run_pattern_ai():
+    """Pattern AI system"""
     try:
-        if shared_df is None or len(shared_df) < 20:
+        df = get_xau_data_extended()
+        if df is None or len(df) < 20:
             return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้"
         
         detector = SimplePatternDetector()
-        pattern_info = detector.detect_pattern(shared_df.tail(50))
-        trading_signals = detector.predict_signals(shared_df)
+        pattern_info = detector.detect_pattern(df.tail(50))
+        trading_signals = detector.predict_signals(df, pattern_info)
         
-        current_data = shared_df.iloc[-1]
+        current_data = df.iloc[-1]
         current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
         
         # Pattern descriptions
@@ -528,7 +533,6 @@ def run_pattern_ai_shared(shared_df):
         
         message = f"""🚀 AI PATTERN DETECTION BOT
 ⏰ {current_time} | 💰 XAUUSD (1H)
-📊 SHARED DATA SOURCE
 
 📊 MARKET DATA:
 Open: ${current_data['open']:,.2f} | High: ${current_data['high']:,.2f}
@@ -538,7 +542,7 @@ Low: ${current_data['low']:,.2f} | Close: ${current_data['close']:,.2f}
 {pattern_desc.get(pattern_info['pattern_name'], pattern_info['pattern_name'])}
 🤖 Method: {pattern_info['method']} | 🎯 Confidence: {pattern_info['confidence']*100:.1f}%
 
-📈 TECHNICAL INDICATORS (SHARED):
+📈 TECHNICAL INDICATORS:
 RSI: {trading_signals['rsi']:.1f} ({'Oversold' if trading_signals['rsi']<30 else 'Overbought' if trading_signals['rsi']>70 else 'Neutral'})
 EMA10: ${trading_signals['ema10']:,.2f} ({'Above' if trading_signals['current_price']>trading_signals['ema10'] else 'Below'})
 EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_price']>trading_signals['ema21'] else 'Below'})
@@ -551,21 +555,6 @@ EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_pr
 💼 TRADING SETUP:
 🎯 Entry: ${trading_signals['entry_price']:,.2f}
 🟢 TP1: ${trading_signals['tp1']:,.2f} | TP2: ${trading_signals['tp2']:,.2f} | TP3: ${trading_signals['tp3']:,.2f}
-🛑 SL: ${trading_signals['sl']:,.2f}
-📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
-
-⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
-        else:
-            message += f"""
-
-⏳ รอ Pattern ที่ชัดเจนกว่า
-📊 Current: ${trading_signals['current_price']:,.2f}
-🔍 กำลังวิเคราะห์แพทเทิร์นใหม่..."""
-
-        return message
-        
-    except Exception as e:
-        return f"❌ PATTERN AI ERROR: {str(e)}" TP2: ${trading_signals['tp2']:,.2f} | TP3: ${trading_signals['tp3']:,.2f}
 🛑 SL: ${trading_signals['sl']:,.2f}
 📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
 
