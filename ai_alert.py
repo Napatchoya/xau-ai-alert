@@ -524,7 +524,8 @@ EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_pr
         
     except Exception as e:
         return f"❌ PATTERN AI ERROR: {str(e)}"
-🛑 SL: ${trading_signals['sl']:,.2f}
+ 
+🔴 SL: ${trading_signals['sl']:,.2f}
 📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
 
 ⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
