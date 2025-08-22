@@ -50,7 +50,7 @@ except ImportError:
 
 load_dotenv()
 
-# 🔐 Environment Variables
+# Environment Variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("API_KEY")
@@ -146,7 +146,7 @@ def get_shared_xau_data():
                 real_price = float(real_price_data['price'])
                 # Update last close with real-time price
                 df.iloc[-1, df.columns.get_loc('close')] = real_price
-                print(f"📊 Real-time price updated: ${real_price:,.2f}")
+                print(f"Data updated: Real-time price ${real_price:,.2f}")
         except Exception as e:
             print(f"⚠️ Real-time price fetch failed: {e}")
         
@@ -562,20 +562,6 @@ EMA21: ${ema21} ({ema21_status})
         
     except Exception as e:
         return f"❌ PATTERN AI ERROR: {str(e)}"
-Pattern Confidence: {trading_signals['confidence']*100:.1f}%
-
-⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
-        else:
-            message += f"""
-
-⏳ รอ Pattern ที่ชัดเจนกว่า
-Current: ${trading_signals['current_price']:,.2f}
-🔍 กำลังวิเคราะห์แพทเทิร์นใหม่..."""
-
-        return message
-        
-    except Exception as e:
-        return f"❌ PATTERN AI ERROR: {str(e)}"
 
 # ====================== Utilities ======================
 
@@ -905,13 +891,13 @@ def home():
             <h1>🤖 XAU AI Trading Bot</h1>
             <p class="status">✅ System Online | Hybrid AI Trading System</p>
             
-            <h2>📊 Trading Systems</h2>
+            <h2>Trading Systems</h2>
             <ul>
                 <li><strong>Original System:</strong> RSI + EMA + Price Change Analysis</li>
                 <li><strong>Pattern AI System:</strong> Chart Pattern Detection + Technical Analysis</li>
             </ul>
             
-            <h2>🔗 API Endpoints</h2>
+            <h2>API Endpoints</h2>
             
             <div class="endpoint">
                 <span class="method">GET</span> <strong>/health</strong>
@@ -921,7 +907,7 @@ def home():
             
             <div class="endpoint">
                 <span class="method">GET</span> <strong>/run-ai</strong>
-                <p><span class="status">📡 ACTIVE MODE:</span> Execute original AI system with Telegram alerts</p>
+                <p><span class="status">ACTIVE MODE:</span> Execute original AI system with Telegram alerts</p>
                 <p><em>Frequency:</em> Every 3 minutes (recommended)</p>
                 <p><em>Output:</em> Telegram message <strong>once per hour</strong> with RSI+EMA+Price Change signals</p>
                 <p><em>Logic:</em> First ping of each hour = send signal, subsequent pings = keep alive</p>
@@ -929,7 +915,7 @@ def home():
             
             <div class="endpoint">
                 <span class="method">GET</span> <strong>/run-pattern-bot</strong>
-                <p><span class="status">📡 ACTIVE MODE:</span> Execute pattern AI trading system with Telegram alerts</p>
+                <p><span class="status">ACTIVE MODE:</span> Execute pattern AI trading system with Telegram alerts</p>
                 <p><em>Frequency:</em> Every 3 minutes (recommended)</p>
                 <p><em>Output:</em> Telegram message <strong>once per hour</strong> with pattern-based signals</p>
                 <p><em>Logic:</em> First ping of each hour = send signal, subsequent pings = keep alive</p>
@@ -959,17 +945,9 @@ def home():
                 <p><em>Returns:</em> System information and configuration status</p>
             </div>
             
-            <h2>⚙️ Configuration</h2>
-            <p>The bot requires the following environment variables:</p>
-            <ul>
-                <li><code>BOT_TOKEN</code> - Telegram bot token</li>
-                <li><code>CHAT_ID</code> - Telegram chat ID for messages</li>
-                <li><code>API_KEY</code> - TwelveData API key for market data</li>
-            </ul>
-            
-            <h2>📈 Recommended UptimeRobot Setup</h2>
+            <h2>Recommended UptimeRobot Setup</h2>
             <div style="background-color: #2a2a2a; padding: 20px; border-radius: 8px; border-left: 4px solid #00ff88;">
-                <h3 style="margin-top: 0; color: #00ff88;">🎯 Dual System Strategy:</h3>
+                <h3 style="margin-top: 0; color: #00ff88;">Dual System Strategy:</h3>
                 <p><strong>Monitor 1:</strong> <code>/run-ai</code> - Every 3 minutes</p>
                 <p style="margin-left: 20px;">→ Sends ORIGINAL system signals <strong>once per hour</strong></p>
                 
@@ -979,12 +957,12 @@ def home():
                 <p style="color: #ffaa00;"><strong>Result:</strong> <span style="color: #00ff88;">Exactly 2 trading signals per hour</span> via Telegram</p>
                 <p style="color: #ffaa00;"><strong>Benefit:</strong> Compare both systems + Service never sleeps + No duplicate messages</p>
                 
-                <h4 style="color: #00ff88;">📱 Expected Telegram Messages per Hour:</h4>
+                <h4 style="color: #00ff88;">Expected Telegram Messages per Hour:</h4>
                 <p>🤖 <strong>Original AI Signal</strong> - RSI + EMA + Price Change analysis</p>
                 <p>🚀 <strong>Pattern AI Signal</strong> - CNN + RNN + Pattern detection</p>
                 <p style="color: #666;">Each system sends exactly once per hour, independent tracking</p>
                 
-                <h4 style="color: #ffaa00;">🔧 How It Works (Shared Data System):</h4>
+                <h4 style="color: #ffaa00;">How It Works (Shared Data System):</h4>
                 <p style="margin-left: 10px;">• Both systems use <strong>identical data source</strong> from single API call</p>
                 <p style="margin-left: 10px;">• Same OHLC data, same RSI calculation, same real-time price</p>
                 <p style="margin-left: 10px;">• Only analysis methods differ: Original uses ML, Pattern uses rule-based detection</p>
@@ -993,7 +971,23 @@ def home():
                 <p style="color: #00ff88; margin-left: 10px;"><strong>✅ Result: Consistent data, different perspectives</strong></p>
             </div>
             
-            <h2>⚠️ Risk Disclaimer</h2>
+            <h2>Configuration</h2>
+            <p>The bot requires the following environment variables:</p>
+            <ul>
+                <li><code>BOT_TOKEN</code> - Telegram bot token</li>
+                <li><code>CHAT_ID</code> - Telegram chat ID for messages</li>
+                <li><code>API_KEY</code> - TwelveData API key for market data</li>
+            </ul>
+            
+            <h2>Usage</h2>
+            <p>Use monitoring services like UptimeRobot to ping:</p>
+            <ul>
+                <li><code>/health</code> for keeping the service alive</li>
+                <li><code>/run-ai</code> for original system signals</li>
+                <li><code>/run-pattern-bot</code> for pattern-based signals</li>
+            </ul>
+            
+            <h2>Risk Disclaimer</h2>
             <p class="warning">This is an automated trading bot for educational purposes. Always use proper risk management and never risk more than 1-2% of your account per trade. Past performance does not guarantee future results.</p>
             
             <hr style="border-color: #444; margin: 40px 0;">
@@ -1034,28 +1028,28 @@ if __name__ == '__main__':
     print("=" * 60)
     print("🤖 XAU AI Trading Bot v2.0 Starting...")
     print("=" * 60)
-    print(f"🔗 Health Check: /health")
-    print(f"📈 Original System: /run-ai")
-    print(f"🎯 Pattern AI: /run-pattern-bot")
-    print(f"📱 Test Telegram: /test-telegram")
-    print(f"🧪 Test Pattern: /test-pattern-ai")
-    print(f"📊 Pattern Status: /pattern-status")
-    print(f"ℹ️ System Status: /status")
+    print(f"Health Check: /health")
+    print(f"Original System: /run-ai")
+    print(f"Pattern AI: /run-pattern-bot")
+    print(f"Test Telegram: /test-telegram")
+    print(f"Test Pattern: /test-pattern-ai")
+    print(f"Pattern Status: /pattern-status")
+    print(f"System Status: /status")
     print("=" * 60)
-    print(f"🔥 Libraries Available:")
+    print(f"Libraries Available:")
     print(f"   • TensorFlow: {'✅' if HAS_TENSORFLOW else '❌'}")
     print(f"   • Scikit-learn: {'✅' if HAS_SKLEARN else '❌'}")
     print(f"   • TA-Lib: {'✅' if HAS_TA else '❌'}")
     print(f"   • Charts: {'✅' if HAS_CHARTS else '❌'}")
     print("=" * 60)
-    print(f"⚙️ Configuration:")
+    print(f"Configuration:")
     print(f"   • Bot Token: {'✅ Configured' if BOT_TOKEN else '❌ Missing'}")
     print(f"   • Chat ID: {'✅ Configured' if CHAT_ID else '❌ Missing'}")
     print(f"   • API Key: {'✅ Configured' if API_KEY else '❌ Missing'}")
     print("=" * 60)
     print("🚀 Ready for AI-powered trading!")
     print("💰 Asset: XAU/USD | Timeframe: 1H")
-    print("📡 Monitoring: Configure UptimeRobot with endpoints above")
+    print("Monitoring: Configure UptimeRobot with endpoints above")
     print("=" * 60)
     
     # Get port from environment
