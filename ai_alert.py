@@ -562,14 +562,14 @@ EMA21: ${ema21} ({ema21_status})
         
     except Exception as e:
         return f"❌ PATTERN AI ERROR: {str(e)}"
-📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
+Pattern Confidence: {trading_signals['confidence']*100:.1f}%
 
 ⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
         else:
             message += f"""
 
 ⏳ รอ Pattern ที่ชัดเจนกว่า
-📊 Current: ${trading_signals['current_price']:,.2f}
+Current: ${trading_signals['current_price']:,.2f}
 🔍 กำลังวิเคราะห์แพทเทิร์นใหม่..."""
 
         return message
