@@ -264,18 +264,31 @@ def run_ai_once_shared(shared_df):
         signal, (tp1, tp2, tp3, sl) = calc_targets(pred, price)
         ts_txt = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
 
-        msg = (
-            f"🤖 ORIGINAL BOT (RSI+EMA+Price Change)\n"
-            f"⏰ {ts_txt}\n"
-            f"💰 XAUUSD TF H1\n"
-            f"📊 SHARED DATA SOURCE\n"
-            f"Open = ${o:,.2f} | High = ${h:,.2f}\n"
-            f"Low = ${l:,.2f} | Close = ${c:,.2f}\n"
-            f"ราคาปัจจุบัน = ${price:,.2f}\n\n"
-            f"🎯 BOT ทำนาย: {signal}\n"
-            f"{reason_text}\n\n"
-            f"🎯 TP1: ${tp1:,.2f} | TP2: ${tp2:,.2f}\n"
-            f"🎯 TP3: ${tp3:,.2f} | 🔴 SL: ${sl:,.2f}"
+        msg = """🤖 ORIGINAL BOT (RSI+EMA+Price Change)
+⏰ {timestamp}
+💰 XAUUSD TF H1
+💾 SHARED DATA SOURCE
+Open = ${open_val} | High = ${high_val}
+Low = ${low_val} | Close = ${close_val}
+ราคาปัจจุบัน = ${current_val}
+
+🎯 BOT ทำนาย: {signal_result}
+{reasoning}
+
+🎯 TP1: ${tp1_val} | TP2: ${tp2_val}
+🎯 TP3: ${tp3_val} | 🔴 SL: ${sl_val}""".format(
+            timestamp=ts_txt,
+            open_val=f"${o:,.2f}",
+            high_val=f"${h:,.2f}",
+            low_val=f"${l:,.2f}",
+            close_val=f"${c:,.2f}",
+            current_val=f"${price:,.2f}",
+            signal_result=signal,
+            reasoning=reason_text,
+            tp1_val=f"${tp1:,.2f}",
+            tp2_val=f"${tp2:,.2f}",
+            tp3_val=f"${tp3:,.2f}",
+            sl_val=f"${sl:,.2f}"
         )
         
         last_signal = signal
@@ -484,41 +497,66 @@ def run_pattern_ai_shared(shared_df):
             'WAIT': '🟡 WAIT'
         }
         
-        message = f"""🚀 AI PATTERN DETECTION BOT
+        message = """🚀 AI PATTERN DETECTION BOT
 ⏰ {current_time} | 💰 XAUUSD (1H)
-📊 SHARED DATA SOURCE
+💾 SHARED DATA SOURCE
 
-📊 MARKET DATA:
-Open: ${current_data['open']:,.2f} | High: ${current_data['high']:,.2f}
-Low: ${current_data['low']:,.2f} | Close: ${current_data['close']:,.2f}
+💰 MARKET DATA:
+Open: ${open_price} | High: ${high_price}
+Low: ${low_price} | Close: ${close_price}
 
 🔍 PATTERN DETECTED:
-{pattern_desc.get(pattern_info['pattern_name'], pattern_info['pattern_name'])}
-🤖 Method: {pattern_info['method']} | 🎯 Confidence: {pattern_info['confidence']*100:.1f}%
+{pattern_desc}
+🤖 Method: {method} | 🎯 Confidence: {pattern_confidence}%
 
-📈 TECHNICAL INDICATORS (SHARED):
-RSI: {trading_signals['rsi']:.1f} ({'Oversold' if trading_signals['rsi']<30 else 'Overbought' if trading_signals['rsi']>70 else 'Neutral'})
-EMA10: ${trading_signals['ema10']:,.2f} ({'Above' if trading_signals['current_price']>trading_signals['ema10'] else 'Below'})
-EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_price']>trading_signals['ema21'] else 'Below'})
+💹 TECHNICAL INDICATORS (SHARED):
+RSI: {rsi} ({rsi_status})
+EMA10: ${ema10} ({ema10_status})
+EMA21: ${ema21} ({ema21_status})
 
-🚦 PATTERN AI SIGNAL: {action_emoji[trading_signals['action']]}"""
+🚦 PATTERN AI SIGNAL: {action_signal}""".format(
+            current_time=current_time,
+            open_price=f"${current_data['open']:,.2f}",
+            high_price=f"${current_data['high']:,.2f}",
+            low_price=f"${current_data['low']:,.2f}",
+            close_price=f"${current_data['close']:,.2f}",
+            pattern_desc=pattern_desc.get(pattern_info['pattern_name'], pattern_info['pattern_name']),
+            method=pattern_info['method'],
+            pattern_confidence=f"{pattern_info['confidence']*100:.1f}",
+            rsi=f"{trading_signals['rsi']:.1f}",
+            rsi_status='Oversold' if trading_signals['rsi']<30 else 'Overbought' if trading_signals['rsi']>70 else 'Neutral',
+            ema10=f"${trading_signals['ema10']:,.2f}",
+            ema10_status='Above' if trading_signals['current_price']>trading_signals['ema10'] else 'Below',
+            ema21=f"${trading_signals['ema21']:,.2f}",
+            ema21_status='Above' if trading_signals['current_price']>trading_signals['ema21'] else 'Below',
+            action_signal=action_emoji[trading_signals['action']]
+        )
 
         if trading_signals['action'] != 'WAIT':
-            message += f"""
+            message += """
 
 💼 TRADING SETUP:
-🎯 Entry: ${trading_signals['entry_price']:,.2f}
-🟢 TP1: ${trading_signals['tp1']:,.2f} | TP2: ${trading_signals['tp2']:,.2f} | TP3: ${trading_signals['tp3']:,.2f}
-🔴 SL: ${trading_signals['sl']:,.2f}
-📊 Pattern Confidence: {trading_signals['confidence']*100:.1f}%
+🎯 Entry: ${entry_price}
+🟢 TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}
+🔴 SL: ${sl}
+💯 Pattern Confidence: {confidence}%
 
-⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์"""
+⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์""".format(
+                entry_price=f"${trading_signals['entry_price']:,.2f}",
+                tp1=f"${trading_signals['tp1']:,.2f}",
+                tp2=f"${trading_signals['tp2']:,.2f}",
+                tp3=f"${trading_signals['tp3']:,.2f}",
+                sl=f"${trading_signals['sl']:,.2f}",
+                confidence=f"{trading_signals['confidence']*100:.1f}"
+            )
         else:
-            message += f"""
+            message += """
 
 ⏳ รอ Pattern ที่ชัดเจนกว่า
-📊 Current: ${trading_signals['current_price']:,.2f}
-🔍 กำลังวิเคราะห์แพทเทิร์นใหม่..."""
+💰 Current: ${current_price}
+🔍 กำลังวิเคราะห์แพทเทิร์นใหม่...""".format(
+                current_price=f"${trading_signals['current_price']:,.2f}"
+            )
 
         return message
         
