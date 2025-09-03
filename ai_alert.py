@@ -708,9 +708,18 @@ def run_pattern_bot():
                     # ใช้ shared data
                     shared_df = get_shared_xau_data()
                     if shared_df is not None:
-                        result = run_pattern_ai_shared(shared_df)
-                        send_status = send_telegram(result)
-                        print(f"✅ [{current_time}] Pattern AI sent to Telegram: Status {send_status}")
+                        # ใช้ฟังก์ชันใหม่ที่สร้างกราฟ
+                        result, chart_buffer, pattern_description = run_pattern_ai_shared_with_chart(shared_df)
+            
+                        # ส่งข้อความพร้อมกราฟ
+                        send_status = send_telegram_with_chart(result, chart_buffer)
+            
+                        # ส่งคำอธิบายแพทเทิร์นแยกต่างหาก (ถ้ามี)
+                        if pattern_description and pattern_description != "ไม่มีข้อมูลแพทเทิร์นนี้":
+                            time.sleep(2)  # รอ 2 วินาทีก่อนส่งข้อความต่อไป
+                            send_telegram(f"📚 รายละเอียดแพทเทิร์น:\n{pattern_description}")
+            
+                        print(f"✅ [{current_time}] Pattern AI with chart sent to Telegram: Status {send_status}")
                         print(f"Pattern message preview: {result[:150]}...")
                     else:
                         error_msg = f"❌ Pattern AI Data Error @ {current_time}\nCannot fetch market data"
