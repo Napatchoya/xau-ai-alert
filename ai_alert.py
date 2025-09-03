@@ -162,6 +162,474 @@ def get_shared_xau_data():
         print(f"Error fetching shared XAU data: {e}")
         return None
 
+# ====================== Chart Generation Functions ======================
+
+def create_candlestick_chart(df, trading_signals, pattern_info):
+    """Create candlestick chart with pattern lines and trading levels"""
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        from matplotlib.dates import DateFormatter
+        import matplotlib.dates as mdates
+        
+        # Use last 50 candles for better visibility
+        chart_df = df.tail(50).copy()
+        
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), 
+                                       gridspec_kw={'height_ratios': [3, 1]})
+        
+        # Set dark theme
+        fig.patch.set_facecolor('#1a1a1a')
+        ax1.set_facecolor('#1a1a1a')
+        ax2.set_facecolor('#1a1a1a')
+        
+        # Main candlestick chart
+        for i, (idx, row) in enumerate(chart_df.iterrows()):
+            color = '#00ff88' if row['close'] >= row['open'] else '#ff4444'
+            
+            # Draw candle body
+            body_height = abs(row['close'] - row['open'])
+            body_bottom = min(row['close'], row['open'])
+            
+            ax1.add_patch(patches.Rectangle(
+                (i - 0.3, body_bottom), 0.6, body_height,
+                facecolor=color, edgecolor=color, alpha=0.8
+            ))
+            
+            # Draw wicks
+            ax1.plot([i, i], [row['low'], row['high']], 
+                    color=color, linewidth=1, alpha=0.7)
+        
+        # Plot EMAs
+        if 'ema' in chart_df.columns:
+            ax1.plot(range(len(chart_df)), chart_df['ema'].values, 
+                    color='#ffaa00', linewidth=2, label='EMA 10', alpha=0.8)
+        if 'ema_21' in chart_df.columns:
+            ax1.plot(range(len(chart_df)), chart_df['ema_21'].values, 
+                    color='#ff6600', linewidth=2, label='EMA 21', alpha=0.8)
+        
+        # Add trading levels
+        current_price = trading_signals['current_price']
+        entry_price = trading_signals['entry_price']
+        tp1, tp2, tp3 = trading_signals['tp1'], trading_signals['tp2'], trading_signals['tp3']
+        sl = trading_signals['sl']
+        
+        # Draw horizontal lines for trading levels
+        x_range = range(len(chart_df))
+        
+        # Entry line
+        ax1.axhline(y=entry_price, color='#ffffff', linestyle='--', 
+                   linewidth=2, alpha=0.9, label=f'Entry: ${entry_price}')
+        
+        # TP lines
+        ax1.axhline(y=tp1, color='#00ff88', linestyle='-', 
+                   linewidth=1.5, alpha=0.7, label=f'TP1: ${tp1}')
+        ax1.axhline(y=tp2, color='#00dd66', linestyle='-', 
+                   linewidth=1.5, alpha=0.7, label=f'TP2: ${tp2}')
+        ax1.axhline(y=tp3, color='#00bb44', linestyle='-', 
+                   linewidth=1.5, alpha=0.7, label=f'TP3: ${tp3}')
+        
+        # SL line
+        ax1.axhline(y=sl, color='#ff4444', linestyle='-', 
+                   linewidth=2, alpha=0.8, label=f'SL: ${sl}')
+        
+        # Add pattern detection lines
+        pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
+        if pattern_name != 'NO_PATTERN':
+            draw_pattern_lines(ax1, chart_df, pattern_name)
+        
+        # Add support/resistance levels
+        draw_support_resistance(ax1, chart_df)
+        
+        # Style main chart
+        ax1.set_title(f'XAU/USD - Pattern: {pattern_name} | Signal: {trading_signals["action"]}', 
+                     color='#ffffff', fontsize=14, fontweight='bold')
+        ax1.set_ylabel('Price ($)', color='#ffffff', fontsize=12)
+        ax1.tick_params(colors='#ffffff')
+        ax1.grid(True, alpha=0.3, color='#444444')
+        ax1.legend(loc='upper left', facecolor='#2a2a2a', edgecolor='#444444', 
+                  labelcolor='#ffffff')
+        
+        # RSI subplot
+        if 'rsi' in chart_df.columns:
+            rsi_values = chart_df['rsi'].dropna()
+            ax2.plot(range(len(rsi_values)), rsi_values.values, 
+                    color='#00aaff', linewidth=2, label='RSI')
+            ax2.axhline(y=70, color='#ff4444', linestyle='--', alpha=0.7, label='Overbought')
+            ax2.axhline(y=30, color='#00ff88', linestyle='--', alpha=0.7, label='Oversold')
+            ax2.axhline(y=50, color='#888888', linestyle='-', alpha=0.5)
+            
+            ax2.set_ylabel('RSI', color='#ffffff', fontsize=12)
+            ax2.set_ylim(0, 100)
+            ax2.tick_params(colors='#ffffff')
+            ax2.grid(True, alpha=0.3, color='#444444')
+            ax2.legend(loc='upper right', facecolor='#2a2a2a', edgecolor='#444444', 
+                      labelcolor='#ffffff')
+        
+        # Format x-axis
+        ax1.set_xlim(-1, len(chart_df))
+        ax2.set_xlim(-1, len(chart_df))
+        
+        # Add timestamp
+        timestamp = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+        fig.text(0.02, 0.02, f"Generated: {timestamp} (Bangkok)", 
+                color='#888888', fontsize=10)
+        
+        plt.tight_layout()
+        
+        # Save to bytes
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', facecolor='#1a1a1a', 
+                   edgecolor='none', dpi=100, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close()
+        
+        return img_buffer
+        
+    except Exception as e:
+        print(f"Chart creation error: {e}")
+        return None
+
+def draw_pattern_lines(ax, df, pattern_name):
+    """Draw pattern-specific lines on chart"""
+    try:
+        if pattern_name == 'HEAD_SHOULDERS':
+            # Find peaks for head and shoulders
+            highs = df['high'].values
+            if len(highs) >= 20:
+                # Simplified head and shoulders pattern
+                mid_point = len(highs) // 2
+                left_shoulder = np.argmax(highs[max(0, mid_point-10):mid_point])
+                head = np.argmax(highs[mid_point-5:mid_point+5]) + mid_point - 5
+                right_shoulder = np.argmax(highs[mid_point:mid_point+10]) + mid_point
+                
+                # Draw neckline
+                if left_shoulder < head < right_shoulder:
+                    neckline_y = (df['low'].iloc[left_shoulder] + df['low'].iloc[right_shoulder]) / 2
+                    ax.axhline(y=neckline_y, color='#ff00ff', linestyle=':', 
+                              linewidth=2, alpha=0.8, label='Neckline')
+                    
+                    # Mark the pattern points
+                    ax.scatter([left_shoulder, head, right_shoulder], 
+                              [highs[left_shoulder], highs[head], highs[right_shoulder]], 
+                              color='#ff00ff', s=60, alpha=0.8, marker='^')
+        
+        elif pattern_name == 'DOUBLE_TOP':
+            # Find two highest peaks
+            highs = df['high'].values
+            peaks = []
+            for i in range(2, len(highs)-2):
+                if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+                    peaks.append((i, highs[i]))
+            
+            if len(peaks) >= 2:
+                # Take last two peaks
+                peak1, peak2 = peaks[-2], peaks[-1]
+                ax.scatter([peak1[0], peak2[0]], [peak1[1], peak2[1]], 
+                          color='#ff6600', s=60, alpha=0.8, marker='v')
+                
+                # Draw resistance line
+                ax.plot([peak1[0], peak2[0]], [peak1[1], peak2[1]], 
+                       color='#ff6600', linestyle='--', linewidth=2, alpha=0.8, label='Resistance')
+        
+        elif pattern_name == 'ASCENDING_TRIANGLE':
+            # Draw ascending triangle pattern
+            highs = df['high'].values
+            lows = df['low'].values
+            
+            # Find resistance level (horizontal)
+            resistance = np.max(highs[-20:])
+            ax.axhline(y=resistance, color='#00ffff', linestyle='-', 
+                      linewidth=2, alpha=0.8, label='Resistance')
+            
+            # Find ascending support line
+            recent_lows = [(i, lows[i]) for i in range(len(lows)-20, len(lows)) 
+                          if i > 0 and lows[i] < lows[i-1]]
+            if len(recent_lows) >= 2:
+                x_vals = [p[0] for p in recent_lows[-2:]]
+                y_vals = [p[1] for p in recent_lows[-2:]]
+                ax.plot(x_vals, y_vals, color='#00ffff', linestyle='-', 
+                       linewidth=2, alpha=0.8, label='Support')
+        
+    except Exception as e:
+        print(f"Pattern line drawing error: {e}")
+
+def draw_support_resistance(ax, df):
+    """Draw support and resistance levels"""
+    try:
+        # Calculate pivot points
+        highs = df['high'].values
+        lows = df['low'].values
+        closes = df['close'].values
+        
+        # Find recent swing highs and lows
+        swing_highs = []
+        swing_lows = []
+        
+        lookback = min(20, len(df))
+        
+        for i in range(2, lookback-2):
+            # Swing high
+            if (highs[-(i+1)] > highs[-(i+2)] and highs[-(i+1)] > highs[-i] and
+                highs[-(i+1)] > highs[-(i+3)] and highs[-(i+1)] > highs[-(i-1)]):
+                swing_highs.append(highs[-(i+1)])
+            
+            # Swing low
+            if (lows[-(i+1)] < lows[-(i+2)] and lows[-(i+1)] < lows[-i] and
+                lows[-(i+1)] < lows[-(i+3)] and lows[-(i+1)] < lows[-(i-1)]):
+                swing_lows.append(lows[-(i+1)])
+        
+        # Draw support levels (from swing lows)
+        for level in swing_lows[-3:]:  # Show last 3 support levels
+            ax.axhline(y=level, color='#00ff88', linestyle=':', 
+                      linewidth=1, alpha=0.6)
+        
+        # Draw resistance levels (from swing highs)
+        for level in swing_highs[-3:]:  # Show last 3 resistance levels
+            ax.axhline(y=level, color='#ff4444', linestyle=':', 
+                      linewidth=1, alpha=0.6)
+        
+        # Add labels
+        if swing_lows:
+            ax.text(0.02, 0.02, f'Support: ${swing_lows[-1]:.2f}', 
+                   transform=ax.transAxes, color='#00ff88', fontsize=10)
+        if swing_highs:
+            ax.text(0.02, 0.95, f'Resistance: ${swing_highs[-1]:.2f}', 
+                   transform=ax.transAxes, color='#ff4444', fontsize=10)
+            
+    except Exception as e:
+        print(f"Support/Resistance drawing error: {e}")
+
+def get_pattern_description(pattern_name):
+    """Get detailed pattern description"""
+    descriptions = {
+        'HEAD_SHOULDERS': """📊 HEAD & SHOULDERS PATTERN:
+
+🔍 คุณสมบัติ:
+• รูปแบบกลับตัวแบบ Bearish (ลดลง)
+• ประกอบด้วย 3 จุดสูง: ไหล่ซ้าย - หัว - ไหล่ขวา
+• หัวสูงกว่าไหล่ทั้งสองข้าง
+• เส้น Neckline เป็นแนวรับสำคัญ
+
+📈 สัญญาณ:
+• เมื่อราคาทะลุ Neckline ลงมา = สัญญาณ SELL
+• Target = ระยะทางจากหัวถึง Neckline
+• ปริมาณการซื้อขายลดลงที่ไหล่ขวา
+
+⚠️ ความเสี่ยง: รอให้ทะลุ Neckline ก่อนเข้า SELL""",
+
+        'DOUBLE_TOP': """📊 DOUBLE TOP PATTERN:
+
+🔍 คุณสมบัติ:
+• รูปแบบกลับตัวแบบ Bearish (ลดลง)
+• มี 2 จุดสูงใกล้เคียงกัน
+• ระหว่างจุดสูงมี Valley (หุบเขา)
+• แนวรับที่ Valley = Support สำคัญ
+
+📈 สัญญาณ:
+• เมื่อราคาทะลุ Support ที่ Valley = สัญญาณ SELL  
+• Target = ระยะทางจาก Peak ถึง Valley
+• ปริมาณการซื้อขายลดลงที่ Top ที่ 2
+
+⚠️ ความเสี่ยง: False breakout เกิดได้ง่าย""",
+
+        'DOUBLE_BOTTOM': """📊 DOUBLE BOTTOM PATTERN:
+
+🔍 คุณสมบัติ:
+• รูปแบบกลับตัวแบบ Bullish (เพิ่มขึ้น)
+• มี 2 จุดต่ำใกล้เคียงกัน
+• ระหว่างจุดต่ำมี Peak (ยอดเขา)
+• แนวต้านที่ Peak = Resistance สำคัญ
+
+📈 สัญญาณ:
+• เมื่อราคาทะลุ Resistance ที่ Peak = สัญญาณ BUY
+• Target = ระยะทางจาก Bottom ถึง Peak  
+• ปริมาณการซื้อขายเพิ่มขึ้นตอน Breakout
+
+⚠️ ความเสี่ยง: ต้องรอการยืนยันการทะลุ""",
+
+        'ASCENDING_TRIANGLE': """📊 ASCENDING TRIANGLE:
+
+🔍 คุณสมบัติ:
+• รูปแบบ Continuation แบบ Bullish
+• แนวต้านแนวนอน (Horizontal Resistance)
+• แนวรับทะยานขึ้น (Ascending Support)  
+• ปริมาณการซื้อขายค่อยๆ ลดลง
+
+📈 สั�ญาณ:
+• เมื่อราคาทะลุ Resistance = สัญญาณ BUY
+• Target = ความสูงของรูปสามเหลี่ยม
+• Stop Loss ใต้แนวรับล่าสุด
+
+⚠️ ความเสี่ยง: อาจ False Breakout ได้""",
+
+        'BULL_FLAG': """📊 BULL FLAG PATTERN:
+
+🔍 คุณสมบัติ:
+• รูปแบบ Continuation แบบ Bullish
+• เกิดหลังการขึ้นแรง (Flagpole)
+• ช่วง Consolidation รูปสี่เหลี่ยม
+• ปริมาณการซื้อขายลดลงในช่วง Flag
+
+📈 สัญญาณ:  
+• เมื่อราคาทะลุ Flag ขึ้นไป = สัญญาณ BUY
+• Target = ความยาวของ Flagpole + Breakout Point
+• Entry หลังจาก Breakout พร้อม Volume
+
+⚠️ ความเสี่ยง: ระยะเวลา Flag ไม่ควรเกิน 3 สัปดาห์""",
+
+        'NO_PATTERN': """📊 NO CLEAR PATTERN:
+
+🔍 สถานการณ์ปัจจุบัน:
+• ไม่พบแพทเทิร์นชัดเจน
+• ตลาดอาจอยู่ในช่วง Sideways
+• รอการก่อตัวของแพทเทิร์นใหม่
+
+📈 คำแนะนำ:
+• รอจังหวะที่ชัดเจนกว่า
+• เฝ้าดูแนวรับแนวต้านสำคัญ
+• ใช้ Technical Indicators ประกอบ
+
+⚠️ ควรระมัดระวัง: ตลาด Sideways เสี่ยง Whipsaw"""
+    }
+    
+    return descriptions.get(pattern_name, "ไม่มีข้อมูลแพทเทิร์นนี้")
+
+def send_telegram_with_chart(message_text, chart_buffer):
+    """Send message with chart image to Telegram"""
+    try:
+        if not BOT_TOKEN or not CHAT_ID:
+            print("⚠️ Telegram credentials not configured")
+            return 400
+            
+        if chart_buffer is None:
+            # Send text only if chart failed
+            return send_telegram(message_text)
+        
+        # Send photo with caption
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+        
+        files = {'photo': ('chart.png', chart_buffer, 'image/png')}
+        data = {
+            'chat_id': CHAT_ID,
+            'caption': message_text,
+            'parse_mode': 'HTML'
+        }
+        
+        response = requests.post(url, files=files, data=data, timeout=30)
+        print(f"Telegram chart response: {response.status_code}")
+        
+        # Close buffer
+        chart_buffer.close()
+        
+        return response.status_code
+        
+    except Exception as e:
+        print(f"Telegram chart send error: {e}")
+        # Fallback to text-only message
+        return send_telegram(message_text)
+
+def run_pattern_ai_shared_with_chart(shared_df):
+    """Enhanced Pattern AI system with chart generation"""
+    try:
+        if shared_df is None or len(shared_df) < 20:
+            return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้", None, None
+        
+        detector = SimplePatternDetector()
+        pattern_info = detector.detect_pattern(shared_df.tail(50))
+        trading_signals = detector.predict_signals(shared_df)
+        
+        current_data = shared_df.iloc[-1]
+        current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+        
+        # Pattern descriptions
+        pattern_desc = {
+            'HEAD_SHOULDERS': '🗣️ หัวไหล่ (Bearish Reversal)',
+            'DOUBLE_TOP': '⛰️ ยอดคู่ (Bearish Reversal)',
+            'DOUBLE_BOTTOM': '🏔️ ก้นคู่ (Bullish Reversal)', 
+            'ASCENDING_TRIANGLE': '📈 สามเหลี่ยมขาขึ้น (Bullish)',
+            'BULL_FLAG': '🚩 ธงวัว (Bullish Continuation)',
+            'NO_PATTERN': '🔍 ไม่พบแพทเทิร์นชัดเจน'
+        }
+        
+        action_emoji = {
+            'BUY': '🟢 BUY',
+            'SELL': '🔴 SELL', 
+            'WAIT': '🟡 WAIT'
+        }
+        
+        # Create chart
+        chart_buffer = create_candlestick_chart(shared_df, trading_signals, pattern_info)
+        
+        # Get pattern description
+        pattern_description = get_pattern_description(pattern_info['pattern_name'])
+        
+        message = """🚀 AI PATTERN DETECTION BOT
+⏰ {current_time} | 💰 XAUUSD (1H)
+💾 SHARED DATA SOURCE
+
+💰 MARKET DATA:
+Open: ${open_price} | High: ${high_price}
+Low: ${low_price} | Close: ${close_price}
+
+🔍 PATTERN DETECTED:
+{pattern_desc}
+🤖 Method: {method} | 🎯 Confidence: {pattern_confidence}%
+
+💹 TECHNICAL INDICATORS (SHARED):
+RSI: {rsi} ({rsi_status})
+EMA10: ${ema10} ({ema10_status})
+EMA21: ${ema21} ({ema21_status})
+
+🚦 PATTERN AI SIGNAL: {action_signal}""".format(
+            current_time=current_time,
+            open_price=f"${current_data['open']:,.2f}",
+            high_price=f"${current_data['high']:,.2f}",
+            low_price=f"${current_data['low']:,.2f}",
+            close_price=f"${current_data['close']:,.2f}",
+            pattern_desc=pattern_desc.get(pattern_info['pattern_name'], pattern_info['pattern_name']),
+            method=pattern_info['method'],
+            pattern_confidence=f"{pattern_info['confidence']*100:.1f}",
+            rsi=f"{trading_signals['rsi']:.1f}",
+            rsi_status='Oversold' if trading_signals['rsi']<30 else 'Overbought' if trading_signals['rsi']>70 else 'Neutral',
+            ema10=f"${trading_signals['ema10']:,.2f}",
+            ema10_status='Above' if trading_signals['current_price']>trading_signals['ema10'] else 'Below',
+            ema21=f"${trading_signals['ema21']:,.2f}",
+            ema21_status='Above' if trading_signals['current_price']>trading_signals['ema21'] else 'Below',
+            action_signal=action_emoji[trading_signals['action']]
+        )
+
+        if trading_signals['action'] != 'WAIT':
+            message += """
+
+💼 TRADING SETUP:
+🎯 Entry: ${entry_price}
+🟢 TP1: ${tp1} | TP2: ${tp2} | TP3: ${tp3}
+🔴 SL: ${sl}
+💯 Pattern Confidence: {confidence}%
+
+⚠️ Risk: ใช้เงินเพียง 1-2% ต่อออเดอร์""".format(
+                entry_price=f"${trading_signals['entry_price']:,.2f}",
+                tp1=f"${trading_signals['tp1']:,.2f}",
+                tp2=f"${trading_signals['tp2']:,.2f}",
+                tp3=f"${trading_signals['tp3']:,.2f}",
+                sl=f"${trading_signals['sl']:,.2f}",
+                confidence=f"{trading_signals['confidence']*100:.1f}"
+            )
+        else:
+            message += """
+
+⏳ รอ Pattern ที่ชัดเจนกว่า
+💰 Current: ${current_price}
+🔍 กำลังวิเคราะห์แพทเทิร์นใหม่...""".format(
+                current_price=f"${trading_signals['current_price']:,.2f}"
+            )
+
+        return message, chart_buffer, pattern_description
+        
+    except Exception as e:
+        return f"❌ PATTERN AI ERROR: {str(e)}", None, None
+
 # ====================== Original System Functions ======================
 
 def explain_prediction(model, x_vec: np.ndarray, price: float, ema_val: float, rsi_val: float, pred_label: int):
