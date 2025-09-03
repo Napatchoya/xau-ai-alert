@@ -760,6 +760,47 @@ def run_pattern_bot():
             "message": str(e)
         }), 500
 
+@app.route('/test-pattern-chart')
+def test_pattern_chart():
+    """Test pattern AI with chart generation"""
+    try:
+        shared_df = get_shared_xau_data()
+        if shared_df is not None:
+            result, chart_buffer, pattern_description = run_pattern_ai_shared_with_chart(shared_df)
+            
+            # ทดสอบส่งกราฟ
+            if chart_buffer:
+                send_status = send_telegram_with_chart(result, chart_buffer)
+                
+                # ส่งคำอธิบายแพทเทิร์น
+                if pattern_description and pattern_description != "ไม่มีข้อมูลแพทเทิร์นนี้":
+                    time.sleep(2)
+                    send_telegram(f"📚 รายละเอียดแพทเทิร์น:\n{pattern_description}")
+                
+                return jsonify({
+                    "status": "success",
+                    "message": "Pattern chart sent to Telegram",
+                    "telegram_status": send_status,
+                    "has_chart": True,
+                    "has_pattern_description": bool(pattern_description)
+                })
+            else:
+                return jsonify({
+                    "status": "warning",
+                    "message": "Chart generation failed, sent text only",
+                    "has_chart": False
+                })
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": "Cannot fetch market data"
+            })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route('/test-pattern-ai')
 def test_pattern_ai():
     """Test pattern AI system"""
