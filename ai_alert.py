@@ -495,6 +495,302 @@ def get_pattern_description(pattern_name):
     
     return descriptions.get(pattern_name, "ไม่มีข้อมูลแพทเทิร์นนี้")
 
+def create_pattern_theory_diagram(pattern_name):
+    """Create theoretical diagram explaining pattern characteristics"""
+    try:
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        
+        # Set dark theme
+        fig.patch.set_facecolor('#1a1a1a')
+        ax.set_facecolor('#1a1a1a')
+        
+        if pattern_name == 'HEAD_SHOULDERS':
+            create_head_shoulders_diagram(ax)
+            title = "📊 HEAD & SHOULDERS PATTERN - ทฤษฎีและหลักการ"
+            
+        elif pattern_name == 'DOUBLE_TOP':
+            create_double_top_diagram(ax)
+            title = "📊 DOUBLE TOP PATTERN - ทฤษฎีและหลักการ"
+            
+        elif pattern_name == 'DOUBLE_BOTTOM':
+            create_double_bottom_diagram(ax)
+            title = "📊 DOUBLE BOTTOM PATTERN - ทฤษฎีและหลักการ"
+            
+        elif pattern_name == 'ASCENDING_TRIANGLE':
+            create_ascending_triangle_diagram(ax)
+            title = "📊 ASCENDING TRIANGLE - ทฤษฎีและหลักการ"
+            
+        elif pattern_name == 'BULL_FLAG':
+            create_bull_flag_diagram(ax)
+            title = "📊 BULL FLAG PATTERN - ทฤษฎีและหลักการ"
+            
+        else:
+            create_generic_pattern_diagram(ax)
+            title = "📊 CHART PATTERN ANALYSIS - ทฤษฎีทั่วไป"
+        
+        # Style the chart
+        ax.set_title(title, color='#ffffff', fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('Time (เวลา)', color='#ffffff', fontsize=12)
+        ax.set_ylabel('Price (ราคา)', color='#ffffff', fontsize=12)
+        ax.tick_params(colors='#ffffff')
+        ax.grid(True, alpha=0.3, color='#444444')
+        
+        # Remove axes numbers for cleaner look
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+        # Add legend
+        ax.legend(loc='upper left', facecolor='#2a2a2a', edgecolor='#444444', 
+                 labelcolor='#ffffff', fontsize=10)
+        
+        plt.tight_layout()
+        
+        # Save to bytes
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', facecolor='#1a1a1a', 
+                   edgecolor='none', dpi=100, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close()
+        
+        return img_buffer
+        
+    except Exception as e:
+        print(f"Pattern theory diagram error: {e}")
+        return None
+
+def create_head_shoulders_diagram(ax):
+    """Create Head & Shoulders theoretical diagram"""
+    # Price points for the pattern
+    x = np.linspace(0, 10, 100)
+    
+    # Create idealized head and shoulders pattern
+    left_shoulder = 2 + 0.5 * np.sin((x - 2) * 2) * np.exp(-((x - 2) / 1.5)**2)
+    head = 3 + 1.2 * np.sin((x - 5) * 2) * np.exp(-((x - 5) / 1.0)**2)
+    right_shoulder = 2 + 0.5 * np.sin((x - 8) * 2) * np.exp(-((x - 8) / 1.5)**2)
+    
+    price_line = 2 + left_shoulder + head + right_shoulder
+    
+    # Plot the main pattern
+    ax.plot(x, price_line, color='#00ff88', linewidth=3, label='Price Action')
+    
+    # Mark key points
+    shoulder_points_x = [2, 5, 8]
+    shoulder_points_y = [price_line[20], price_line[50], price_line[80]]
+    
+    ax.scatter(shoulder_points_x, shoulder_points_y, color='#ff4444', s=100, 
+              marker='^', label='Key Points', zorder=5)
+    
+    # Draw neckline
+    neckline_y = (shoulder_points_y[0] + shoulder_points_y[2]) / 2
+    ax.axhline(y=neckline_y, color='#ff00ff', linestyle='--', 
+              linewidth=2, alpha=0.8, label='Neckline')
+    
+    # Add annotations
+    ax.annotate('Left Shoulder\n(ไหล่ซ้าย)', xy=(2, shoulder_points_y[0]), 
+               xytext=(1, shoulder_points_y[0] + 0.8), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+    
+    ax.annotate('Head\n(หัว)', xy=(5, shoulder_points_y[1]), 
+               xytext=(5, shoulder_points_y[1] + 1.0), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+    
+    ax.annotate('Right Shoulder\n(ไหล่ขวา)', xy=(8, shoulder_points_y[2]), 
+               xytext=(9, shoulder_points_y[2] + 0.8), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+    
+    # Add breakout arrow
+    ax.annotate('Breakout Target\n(เป้าหมายทะลุ)', xy=(6, neckline_y - 0.5), 
+               xytext=(7.5, neckline_y - 1.5), 
+               arrowprops=dict(arrowstyle='->', color='#ff4444'),
+               color='#ff4444', fontsize=10, ha='center')
+
+def create_double_top_diagram(ax):
+    """Create Double Top theoretical diagram"""
+    x = np.linspace(0, 10, 100)
+    
+    # Create double top pattern
+    peak1 = 1.5 * np.exp(-((x - 3) / 0.8)**2)
+    valley = -0.5 * np.exp(-((x - 5) / 0.6)**2)
+    peak2 = 1.5 * np.exp(-((x - 7) / 0.8)**2)
+    
+    price_line = 3 + peak1 + valley + peak2
+    
+    ax.plot(x, price_line, color='#00ff88', linewidth=3, label='Price Action')
+    
+    # Mark peaks and valley
+    peak_points_x = [3, 7]
+    peak_points_y = [price_line[30], price_line[70]]
+    valley_point_x = 5
+    valley_point_y = price_line[50]
+    
+    ax.scatter(peak_points_x, peak_points_y, color='#ff4444', s=100, 
+              marker='v', label='Double Top', zorder=5)
+    ax.scatter([valley_point_x], [valley_point_y], color='#00ff88', s=100, 
+              marker='^', label='Support', zorder=5)
+    
+    # Draw support line
+    ax.axhline(y=valley_point_y, color='#00ff88', linestyle='--', 
+              linewidth=2, alpha=0.8, label='Support Level')
+    
+    # Annotations
+    ax.annotate('Top 1', xy=(3, peak_points_y[0]), 
+               xytext=(2.5, peak_points_y[0] + 0.5), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+    
+    ax.annotate('Top 2', xy=(7, peak_points_y[1]), 
+               xytext=(7.5, peak_points_y[1] + 0.5), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+
+def create_double_bottom_diagram(ax):
+    """Create Double Bottom theoretical diagram"""
+    x = np.linspace(0, 10, 100)
+    
+    # Create double bottom pattern (inverted double top)
+    bottom1 = -1.5 * np.exp(-((x - 3) / 0.8)**2)
+    peak = 0.5 * np.exp(-((x - 5) / 0.6)**2)
+    bottom2 = -1.5 * np.exp(-((x - 7) / 0.8)**2)
+    
+    price_line = 3 + bottom1 + peak + bottom2
+    
+    ax.plot(x, price_line, color='#00ff88', linewidth=3, label='Price Action')
+    
+    # Mark bottoms and peak
+    bottom_points_x = [3, 7]
+    bottom_points_y = [price_line[30], price_line[70]]
+    peak_point_x = 5
+    peak_point_y = price_line[50]
+    
+    ax.scatter(bottom_points_x, bottom_points_y, color='#00ff88', s=100, 
+              marker='^', label='Double Bottom', zorder=5)
+    ax.scatter([peak_point_x], [peak_point_y], color='#ff4444', s=100, 
+              marker='v', label='Resistance', zorder=5)
+    
+    # Draw resistance line
+    ax.axhline(y=peak_point_y, color='#ff4444', linestyle='--', 
+              linewidth=2, alpha=0.8, label='Resistance Level')
+
+def create_ascending_triangle_diagram(ax):
+    """Create Ascending Triangle theoretical diagram"""
+    x = np.linspace(0, 10, 100)
+    
+    # Create ascending triangle
+    resistance_level = 4
+    ascending_support = 2 + 0.2 * x
+    
+    # Price action within triangle
+    price_oscillation = 0.3 * np.sin(x * 2) * (10 - x) / 10
+    price_line = ascending_support + price_oscillation
+    
+    # Ensure price stays below resistance
+    price_line = np.minimum(price_line, resistance_level - 0.1)
+    
+    ax.plot(x, price_line, color='#00ff88', linewidth=3, label='Price Action')
+    
+    # Draw triangle lines
+    ax.axhline(y=resistance_level, color='#ff4444', linestyle='-', 
+              linewidth=2, alpha=0.8, label='Horizontal Resistance')
+    ax.plot(x, ascending_support, color='#00ff88', linestyle='-', 
+           linewidth=2, alpha=0.8, label='Ascending Support')
+    
+    # Add breakout arrow
+    ax.annotate('Breakout Point\n(จุดทะลุ)', xy=(8.5, resistance_level + 0.2), 
+               xytext=(9.5, resistance_level + 0.8), 
+               arrowprops=dict(arrowstyle='->', color='#ffaa00'),
+               color='#ffaa00', fontsize=10, ha='center')
+
+def create_bull_flag_diagram(ax):
+    """Create Bull Flag theoretical diagram"""
+    x = np.linspace(0, 10, 100)
+    
+    # Flagpole (strong uptrend)
+    flagpole_x = x[x <= 4]
+    flagpole_y = 1 + 2 * (flagpole_x / 4)
+    
+    # Flag (consolidation)
+    flag_x = x[(x > 4) & (x <= 7)]
+    flag_y = 3 - 0.1 * (flag_x - 4) + 0.1 * np.sin((flag_x - 4) * 3)
+    
+    # Breakout
+    breakout_x = x[x > 7]
+    breakout_y = 2.7 + 1.5 * ((breakout_x - 7) / 3)
+    
+    # Plot segments
+    ax.plot(flagpole_x, flagpole_y, color='#00ff88', linewidth=4, 
+           label='Flagpole (Strong Trend)')
+    ax.plot(flag_x, flag_y, color='#ffaa00', linewidth=3, 
+           label='Flag (Consolidation)')
+    ax.plot(breakout_x, breakout_y, color='#00ff88', linewidth=4, 
+           label='Breakout Continuation')
+    
+    # Mark flag boundaries
+    flag_top = np.max(flag_y) + 0.1
+    flag_bottom = np.min(flag_y) - 0.1
+    
+    ax.axhline(y=flag_top, xmin=0.4, xmax=0.7, color='#ff4444', 
+              linestyle='--', alpha=0.7, label='Flag Boundaries')
+    ax.axhline(y=flag_bottom, xmin=0.4, xmax=0.7, color='#ff4444', 
+              linestyle='--', alpha=0.7)
+
+def create_generic_pattern_diagram(ax):
+    """Create generic pattern analysis diagram"""
+    x = np.linspace(0, 10, 100)
+    
+    # Generic price movement with support/resistance
+    price_line = 3 + 0.5 * np.sin(x) + 0.2 * np.sin(2 * x) + 0.1 * x
+    
+    ax.plot(x, price_line, color='#00ff88', linewidth=3, label='Price Action')
+    
+    # Add generic support/resistance
+    ax.axhline(y=3.5, color='#00ff88', linestyle='--', alpha=0.7, label='Support')
+    ax.axhline(y=4.5, color='#ff4444', linestyle='--', alpha=0.7, label='Resistance')
+    
+    ax.text(5, 2, 'รอการก่อตัวของแพทเทิร์น\nWaiting for Pattern Formation', 
+           ha='center', va='center', color='#ffffff', fontsize=12,
+           bbox=dict(boxstyle='round', facecolor='#2a2a2a', alpha=0.8))
+
+def send_pattern_theory_explanation(pattern_name, pattern_description):
+    """Send pattern theory diagram and detailed explanation to Telegram"""
+    try:
+        # Create theory diagram
+        theory_diagram = create_pattern_theory_diagram(pattern_name)
+        
+        if theory_diagram:
+            # Prepare theory explanation message
+            theory_message = f"""📚 PATTERN THEORY MASTER CLASS
+
+🎯 {pattern_name} - ทฤษฎีและหลักการ
+
+{pattern_description}
+
+💡 หลักการสำคัญ:
+• ศึกษาโครงสร้างแพทเทิร์นก่อนเทรดจริง
+• รอการยืนยันก่อนเข้าออเดอร์
+• ใช้ Risk Management ที่เข้มงวด
+• เฝ้าดูปริมาณการซื้อขาย (Volume)
+
+📖 แหล่งอ้างอิง: Technical Analysis Theory"""
+            
+            # Send diagram with theory explanation
+            send_status = send_telegram_with_chart(theory_message, theory_diagram)
+            print(f"Pattern theory diagram sent: Status {send_status}")
+            return send_status
+        else:
+            # Fallback: send text-only theory
+            theory_text = f"📚 PATTERN THEORY: {pattern_name}\n\n{pattern_description}"
+            return send_telegram(theory_text)
+            
+    except Exception as e:
+        print(f"Pattern theory explanation error: {e}")
+        return 500
+
 def send_telegram_with_chart(message_text, chart_buffer):
     """Send message with chart image to Telegram"""
     try:
