@@ -1234,7 +1234,7 @@ class SimplePatternDetector:
 
 def run_pattern_ai_shared(shared_df):
     """Pattern AI system using shared data (legacy - text only)"""
-    message, _, _ = run_pattern_ai_shared_with_chart(shared_df)
+    message, _, _, _ = run_pattern_ai_shared_with_chart(shared_df)
     return message
     try:
         if shared_df is None or len(shared_df) < 20:
