@@ -1480,8 +1480,9 @@ def run_pattern_bot():
             
                         # ส่งคำอธิบายแพทเทิร์นแยกต่างหาก (ถ้ามี)
                         if pattern_description and pattern_description != "ไม่มีข้อมูลแพทเทิร์นนี้":
-                            time.sleep(2)  # รอ 2 วินาทีก่อนส่งข้อความต่อไป
-                            send_telegram(f"📚 รายละเอียดแพทเทิร์น:\n{pattern_description}")
+                            time.sleep(3)  # รอ 3 วินาที
+                            # ส่งรูปทฤษฎีพร้อมคำอธิบายแบบ Master Class
+                            send_pattern_theory_explanation(pattern_info['pattern_name'], pattern_description)
             
                         print(f"✅ [{current_time}] Pattern AI with chart sent to Telegram: Status {send_status}")
                         print(f"Pattern message preview: {result[:150]}...")
