@@ -829,7 +829,7 @@ def run_pattern_ai_shared_with_chart(shared_df):
     """Enhanced Pattern AI system with chart generation"""
     try:
         if shared_df is None or len(shared_df) < 20:
-            return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้", None, None
+            return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้", None, None, None
         
         detector = SimplePatternDetector()
         pattern_info = detector.detect_pattern(shared_df.tail(50))
