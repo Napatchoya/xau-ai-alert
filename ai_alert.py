@@ -1566,6 +1566,38 @@ def test_pattern_chart():
             "message": str(e)
         }), 500
 
+@app.route('/test-theory-diagram')
+def test_theory_diagram():
+    """Test pattern theory diagram generation"""
+    try:
+        # Test with different patterns
+        test_patterns = ['HEAD_SHOULDERS', 'DOUBLE_TOP', 'DOUBLE_BOTTOM', 
+                        'ASCENDING_TRIANGLE', 'BULL_FLAG', 'NO_PATTERN']
+        
+        pattern_name = request.args.get('pattern', 'HEAD_SHOULDERS')
+        
+        if pattern_name not in test_patterns:
+            return jsonify({
+                "status": "error",
+                "message": f"Invalid pattern. Available: {test_patterns}"
+            })
+        
+        pattern_description = get_pattern_description(pattern_name)
+        send_status = send_pattern_theory_explanation(pattern_name, pattern_description)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Theory diagram for {pattern_name} sent to Telegram",
+            "telegram_status": send_status,
+            "pattern": pattern_name
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route('/test-pattern-ai')
 def test_pattern_ai():
     """Test pattern AI system"""
