@@ -924,7 +924,7 @@ EMA21: ${ema21} ({ema21_status})
         return message, chart_buffer, pattern_description, pattern_info
         
     except Exception as e:
-        return f"❌ PATTERN AI ERROR: {str(e)}", None, None
+        return f"❌ PATTERN AI ERROR: {str(e)}", None, None, None
 
 # ====================== Original System Functions ======================
 
