@@ -753,6 +753,69 @@ def get_extended_pattern_descriptions():
     }
     return extended_descriptions  # ❌ ลบส่วนที่ผิดออก แค่ return dictionary
 
+def send_all_patterns_details(all_patterns):
+    """ส่งรายละเอียดของทุก patterns ที่พบไปยัง Telegram"""
+    try:
+        if len(all_patterns) <= 1:
+            return  # ไม่ส่งถ้ามีแค่ pattern เดียวหรือไม่มี
+        
+        # กรอง patterns ที่มีความมั่นใจสูง
+        quality_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.65]
+        
+        if len(quality_patterns) <= 1:
+            return  # ไม่ส่งถ้ามี quality pattern น้อยกว่า 2 อัน
+        
+        current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+        
+        message = f"""🔍 MULTIPLE PATTERNS DETECTED!
+⏰ {current_time} | 💰 XAU/USD
+
+📊 พบแพทเทิร์นหลายตัว (จากสูงไปต่ำ):
+"""
+        
+        # แสดงแพทเทิร์นทั้งหมด เรียงตาม confidence
+        for i, pattern in enumerate(quality_patterns[:5], 1):  # แสดงสูงสุด 5 patterns
+            confidence_emoji = "🔥" if pattern['confidence'] > 0.8 else "⭐" if pattern['confidence'] > 0.7 else "✨"
+            
+            message += f"""
+{i}. {confidence_emoji} {pattern['pattern_name'].replace('_', ' ')}
+   🎯 Confidence: {pattern['confidence']*100:.1f}%
+   🔧 Method: {pattern['method']}
+"""
+        
+        message += f"""
+🚨 สิ่งที่ต้องระวัง:
+• หลายแพทเทิร์นอาจขัดแย้งกัน
+• ให้ความสำคัญกับแพทเทิร์นที่มี Confidence สูงสุด
+• รอการยืนยันก่อนเข้าเทรด
+• ใช้ Risk Management เข้มงวด
+
+💡 คำแนะนำ: เมื่อมีหลายแพทเทิร์น ควรรอให้ตลาดชัดเจนกว่านี้"""
+        
+        # ส่งข้อความ
+        send_status = send_telegram(message)
+        print(f"Multiple patterns details sent: Status {send_status}")
+        
+        # ส่งรายละเอียดของแต่ละแพทเทิร์นแยก (ถ้ามีเวลา)
+        time.sleep(3)
+        for i, pattern in enumerate(quality_patterns[:3], 1):  # ส่งรายละเอียดแค่ 3 อันแรก
+            pattern_desc = get_pattern_description(pattern['pattern_name'])
+            if pattern_desc != "ไม่มีข้อมูลแพทเทิร์นนี้":
+                detail_message = f"""📚 PATTERN DETAIL #{i}
+
+🎯 {pattern['pattern_name'].replace('_', ' ')}
+💯 Confidence: {pattern['confidence']*100:.1f}%
+
+{pattern_desc}"""
+                send_telegram(detail_message)
+                time.sleep(2)  # หน่วงเวลาระหว่างข้อความ
+        
+        return send_status
+        
+    except Exception as e:
+        print(f"Multiple patterns send error: {e}")
+        return 500
+
 def create_pattern_theory_diagram(pattern_name):
     """Create theoretical diagram explaining pattern characteristics"""
     try:
