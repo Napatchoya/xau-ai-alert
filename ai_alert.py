@@ -2856,6 +2856,10 @@ def run_pattern_bot():
                     shared_df = get_shared_xau_data()
                     if shared_df is not None:
                         # ใช้ฟังก์ชันใหม่ที่สร้างกราฟ
+                        # เรียก detector ก่อน
+                        detector = AdvancedPatternDetector()  # เพิ่มบรรทัดนี้
+                        all_patterns = detector.detect_all_patterns(shared_df.tail(50))  # เพิ่มบรรทัดนี้
+
                         result, chart_buffer, pattern_description, pattern_info = run_pattern_ai_shared_with_chart(shared_df)
             
                         # ส่งข้อความพร้อมกราฟ
