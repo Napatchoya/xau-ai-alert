@@ -1371,7 +1371,8 @@ def run_pattern_ai_shared_with_chart(shared_df):
             return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้", None, None, None
         
         detector = SimplePatternDetector()
-        pattern_info = detector.detect_pattern(shared_df.tail(50))
+        all_patterns = detector.detect_all_patterns(shared_df.tail(50))
+        pattern_info = all_patterns[0]  # ใช้ pattern แรกสำหรับการแสดงผลหลัก
         trading_signals = detector.predict_signals(shared_df)
         
         current_data = shared_df.iloc[-1]
@@ -1778,7 +1779,8 @@ def run_pattern_ai_shared(shared_df):
             return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้"
         
         detector = SimplePatternDetector()
-        pattern_info = detector.detect_pattern(shared_df.tail(50))
+        all_patterns = detector.detect_all_patterns(shared_df.tail(50))
+        pattern_info = all_patterns[0]  # ใช้ pattern แรกสำหรับการแสดงผลหลัก
         trading_signals = detector.predict_signals(shared_df)
         
         current_data = shared_df.iloc[-1]
@@ -2950,7 +2952,8 @@ def pattern_status():
             })
         
         detector = SimplePatternDetector()
-        pattern_info = detector.detect_pattern(shared_df.tail(50))
+        all_patterns = detector.detect_all_patterns(shared_df.tail(50))
+        pattern_info = all_patterns[0]  # ใช้ pattern แรกสำหรับการแสดงผลหลัก
         
         current_price = float(shared_df['close'].iloc[-1])
         current_rsi = float(shared_df['rsi'].iloc[-1]) if not pd.isna(shared_df['rsi'].iloc[-1]) else 50.0
