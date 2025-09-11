@@ -1976,6 +1976,194 @@ class AdvancedPatternDetector:
             34: "TWEEZER_BOTTOM"
         }
 
+
+    # เพิ่มเมธอด predict_signals ใน class AdvancedPatternDetector
+    # เพิ่มเมธอดที่หายไป
+    def predict_signals(self, df):
+        """Predict trading signals based on patterns and technical indicators"""
+        try:
+            current_price = df['close'].iloc[-1]
+            
+            # ใช้ indicators ที่คำนวณไว้แล้วใน shared data
+            current_rsi = df['rsi'].iloc[-1] if not pd.isna(df['rsi'].iloc[-1]) else 50
+            current_ema10 = df['ema'].iloc[-1] if not pd.isna(df['ema'].iloc[-1]) else current_price
+            current_ema21 = df['ema_21'].iloc[-1] if not pd.isna(df['ema_21'].iloc[-1]) else current_price
+            
+            # ตรวจสอบ pattern หลัก
+            all_patterns = self.detect_all_patterns(df.tail(50))
+            main_pattern = all_patterns[0] if all_patterns else {'pattern_name': 'NO_PATTERN', 'confidence': 0.5}
+            
+            # สร้างสัญญาณตาม pattern และ indicators
+            confidence = main_pattern.get('confidence', 0.5)
+            
+            # Pattern-based signal logic
+            if main_pattern['pattern_name'] in ['HEAD_SHOULDERS', 'DOUBLE_TOP', 'EVENING_STAR', 'SHOOTING_STAR', 'ENGULFING_BEARISH']:
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.0005)
+                tp1 = current_price * 0.997
+                tp2 = current_price * 0.994
+                tp3 = current_price * 0.991
+                sl = current_price * 1.005
+                
+            elif main_pattern['pattern_name'] in ['DOUBLE_BOTTOM', 'ASCENDING_TRIANGLE', 'BULL_FLAG', 'HAMMER', 'MORNING_STAR', 'ENGULFING_BULLISH']:
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.0005)
+                tp1 = current_price * 1.003
+                tp2 = current_price * 1.006
+                tp3 = current_price * 1.009
+                sl = current_price * 0.995
+                
+            elif main_pattern['pattern_name'] in ['BEAR_FLAG', 'DESCENDING_TRIANGLE', 'WEDGE_RISING']:
+                action = "SELL"
+                entry_price = current_price - (current_price * 0.001)
+                tp1 = current_price * 0.995
+                tp2 = current_price * 0.990
+                tp3 = current_price * 0.985
+                sl = current_price * 1.010
+                
+            elif main_pattern['pattern_name'] in ['WEDGE_FALLING', 'CUP_AND_HANDLE', 'INVERSE_HEAD_SHOULDERS']:
+                action = "BUY"
+                entry_price = current_price + (current_price * 0.001)
+                tp1 = current_price * 1.005
+                tp2 = current_price * 1.010
+                tp3 = current_price * 1.015
+                sl = current_price * 0.990
+                
+            else:
+                # ใช้ RSI และ EMA เป็นหลัก เมื่อไม่มี pattern ชัดเจน
+                if current_rsi < 30 and current_price < current_ema10:
+                    action = "BUY"
+                    entry_price = current_price + (current_price * 0.0005)
+                    tp1 = current_price * 1.003
+                    tp2 = current_price * 1.006
+                    tp3 = current_price * 1.009
+                    sl = current_price * 0.995
+                    confidence = 0.65
+                    
+                elif current_rsi > 70 and current_price > current_ema10:
+                    action = "SELL"
+                    entry_price = current_price - (current_price * 0.0005)
+                    tp1 = current_price * 0.997
+                    tp2 = current_price * 0.994
+                    tp3 = current_price * 0.991
+                    sl = current_price * 1.005
+                    confidence = 0.65
+                    
+                elif current_price > current_ema10 and current_price > current_ema21:
+                    action = "BUY"
+                    entry_price = current_price + (current_price * 0.001)
+                    tp1 = current_price * 1.005
+                    tp2 = current_price * 1.010
+                    tp3 = current_price * 1.015
+                    sl = current_price * 0.990
+                    confidence = 0.55
+                    
+                elif current_price < current_ema10 and current_price < current_ema21:
+                    action = "SELL"
+                    entry_price = current_price - (current_price * 0.001)
+                    tp1 = current_price * 0.995
+                    tp2 = current_price * 0.990
+                    tp3 = current_price * 0.985
+                    sl = current_price * 1.010
+                    confidence = 0.55
+                    
+                else:
+                    action = "WAIT"
+                    entry_price = current_price
+                    tp1 = tp2 = tp3 = sl = current_price
+                    confidence = 0.40
+                
+            return {
+                'action': action,
+                'entry_price': round(entry_price, 2),
+                'tp1': round(tp1, 2),
+                'tp2': round(tp2, 2), 
+                'tp3': round(tp3, 2),
+                'sl': round(sl, 2),
+                'confidence': confidence,
+                'current_price': round(current_price, 2),
+                'rsi': round(current_rsi, 1),
+                'ema10': round(current_ema10, 2),
+                'ema21': round(current_ema21, 2),
+                'pattern_name': main_pattern['pattern_name'],
+                'pattern_confidence': main_pattern.get('confidence', 0.5)
+            }
+            
+        except Exception as e:
+            print(f"Signal prediction error: {e}")
+            current_price = df['close'].iloc[-1] if len(df) > 0 else 2500
+            return {
+                'action': 'WAIT',
+                'entry_price': round(current_price, 2),
+                'tp1': round(current_price, 2),
+                'tp2': round(current_price, 2),
+                'tp3': round(current_price, 2),
+                'sl': round(current_price, 2),
+                'confidence': 0.30,
+                'current_price': round(current_price, 2),
+                'rsi': 50.0,
+                'ema10': round(current_price, 2),
+                'ema21': round(current_price, 2),
+                'pattern_name': 'ERROR',
+                'pattern_confidence': 0.30
+            }
+
+    # ยังคงใช้เมธอดอื่นๆ ที่มีอยู่แล้ว...
+    def detect_all_patterns(self, df):
+        """Detect ALL patterns instead of just the first one found"""
+        try:
+            if len(df) < 20:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'INSUFFICIENT_DATA'
+                }]
+        
+            all_patterns = []
+        
+            # Check ALL candlestick patterns
+            candlestick_patterns = self.detect_all_candlestick_patterns(df)
+            all_patterns.extend(candlestick_patterns)
+        
+            # Check ALL chart patterns
+            chart_patterns = self.detect_all_chart_patterns(df)
+            all_patterns.extend(chart_patterns)
+        
+            # ถ้าไม่พบ pattern ใดเลย
+            if not all_patterns or all(p['pattern_name'] == 'NO_PATTERN' for p in all_patterns):
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'NO_PATTERNS_FOUND'
+                }]
+        
+            # กรอง patterns ที่มีความมั่นใจสูงกว่า 60% และไม่ใช่ NO_PATTERN
+            valid_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60]
+        
+            if not valid_patterns:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'LOW_CONFIDENCE_PATTERNS'
+                }]
+        
+            # เรียงตาม confidence สูงสุด
+            valid_patterns.sort(key=lambda x: x['confidence'], reverse=True)
+            return valid_patterns[:5]  # ส่งสูงสุด 5 patterns
+        
+        except Exception as e:
+            print(f"Multiple pattern detection error: {e}")
+            return [{
+                'pattern_id': 0,
+                'pattern_name': 'NO_PATTERN',
+                'confidence': 0.30,
+                'method': 'ERROR'
+            }]
+
+    # เมธอดอื่นๆ ยังคงเหมือนเดิม (detect_all_candlestick_patterns, detect_all_chart_patterns, ฯลฯ)
     def detect_all_patterns(self, df):
         """Detect ALL patterns instead of just the first one found"""
         try:
