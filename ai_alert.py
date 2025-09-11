@@ -1978,58 +1978,58 @@ class AdvancedPatternDetector:
         }
 
     def detect_all_patterns(self, df):
-    """Detect ALL patterns instead of just the first one found"""
-    try:
-        if len(df) < 20:
+        """Detect ALL patterns instead of just the first one found"""
+        try:
+            if len(df) < 20:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'INSUFFICIENT_DATA'
+                }]
+        
+            all_patterns = []
+        
+            # Check ALL candlestick patterns
+            candlestick_patterns = self.detect_all_candlestick_patterns(df)
+            all_patterns.extend(candlestick_patterns)
+        
+            # Check ALL chart patterns
+            chart_patterns = self.detect_all_chart_patterns(df)
+            all_patterns.extend(chart_patterns)
+        
+            # ถ้าไม่พบ pattern ใดเลย
+            if not all_patterns or all(p['pattern_name'] == 'NO_PATTERN' for p in all_patterns):
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'NO_PATTERNS_FOUND'
+                    }]
+        
+                # กรอง patterns ที่มีความมั่นใจสูงกว่า 60% และไม่ใช่ NO_PATTERN
+                valid_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60]
+        
+                if not valid_patterns:
+                    return [{
+                        'pattern_id': 0,
+                        'pattern_name': 'NO_PATTERN',
+                        'confidence': 0.50,
+                        'method': 'LOW_CONFIDENCE_PATTERNS'
+                    }]
+        
+            # เรียงตาม confidence สูงสุด
+            valid_patterns.sort(key=lambda x: x['confidence'], reverse=True)
+            return valid_patterns[:5]  # ส่งสูงสุด 5 patterns
+        
+        except Exception as e:
+            print(f"Multiple pattern detection error: {e}")
             return [{
                 'pattern_id': 0,
                 'pattern_name': 'NO_PATTERN',
-                'confidence': 0.50,
-                'method': 'INSUFFICIENT_DATA'
+                'confidence': 0.30,
+                'method': 'ERROR'
             }]
-        
-        all_patterns = []
-        
-        # Check ALL candlestick patterns
-        candlestick_patterns = self.detect_all_candlestick_patterns(df)
-        all_patterns.extend(candlestick_patterns)
-        
-        # Check ALL chart patterns
-        chart_patterns = self.detect_all_chart_patterns(df)
-        all_patterns.extend(chart_patterns)
-        
-        # ถ้าไม่พบ pattern ใดเลย
-        if not all_patterns or all(p['pattern_name'] == 'NO_PATTERN' for p in all_patterns):
-            return [{
-                'pattern_id': 0,
-                'pattern_name': 'NO_PATTERN',
-                'confidence': 0.50,
-                'method': 'NO_PATTERNS_FOUND'
-            }]
-        
-        # กรอง patterns ที่มีความมั่นใจสูงกว่า 60% และไม่ใช่ NO_PATTERN
-        valid_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60]
-        
-        if not valid_patterns:
-            return [{
-                'pattern_id': 0,
-                'pattern_name': 'NO_PATTERN',
-                'confidence': 0.50,
-                'method': 'LOW_CONFIDENCE_PATTERNS'
-            }]
-        
-        # เรียงตาม confidence สูงสุด
-        valid_patterns.sort(key=lambda x: x['confidence'], reverse=True)
-        return valid_patterns[:5]  # ส่งสูงสุด 5 patterns
-        
-    except Exception as e:
-        print(f"Multiple pattern detection error: {e}")
-        return [{
-            'pattern_id': 0,
-            'pattern_name': 'NO_PATTERN',
-            'confidence': 0.30,
-            'method': 'ERROR'
-        }]
 
    def detect_all_candlestick_patterns(self, df):
        """Detect ALL candlestick patterns instead of just the first one"""
