@@ -2201,61 +2201,61 @@ class AdvancedPatternDetector:
            patterns_found.extend(self.check_symmetrical_triangle(highs, lows))
            patterns_found.extend(self.check_bear_flag(closes, highs, lows))
            patterns_found.extend(self.check_wedge_patterns(highs, lows, closes))
-        patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
-        patterns_found.extend(self.check_rectangle(highs, lows))
-        patterns_found.extend(self.check_existing_patterns(df))
+           patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
+           patterns_found.extend(self.check_rectangle(highs, lows))
+           patterns_found.extend(self.check_existing_patterns(df))
         
-        # กรอก patterns ที่ซ้ำกัน
-        unique_patterns = []
-        seen_patterns = set()
-        for pattern in patterns_found:
-            if pattern['pattern_name'] not in seen_patterns:
-                unique_patterns.append(pattern)
-                seen_patterns.add(pattern['pattern_name'])
+           # กรอก patterns ที่ซ้ำกัน
+           unique_patterns = []
+           seen_patterns = set()
+           for pattern in patterns_found:
+               if pattern['pattern_name'] not in seen_patterns:
+                   unique_patterns.append(pattern)
+                   seen_patterns.add(pattern['pattern_name'])
         
-        return unique_patterns
+           return unique_patterns
         
-    except Exception as e:
-        print(f"All chart patterns error: {e}")
-        return []
+       except Exception as e:
+           print(f"All chart patterns error: {e}")
+           return []
 
-def check_descending_triangle(self, highs, lows):
-    """Check for descending triangle - return as list"""
-    pattern = self.detect_descending_triangle(highs, lows)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_descending_triangle(self, highs, lows):
+       """Check for descending triangle - return as list"""
+       pattern = self.detect_descending_triangle(highs, lows)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_symmetrical_triangle(self, highs, lows):
-    """Check for symmetrical triangle - return as list"""
-    pattern = self.detect_symmetrical_triangle(highs, lows)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_symmetrical_triangle(self, highs, lows):
+       """Check for symmetrical triangle - return as list"""
+       pattern = self.detect_symmetrical_triangle(highs, lows)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_bear_flag(self, closes, highs, lows):
-    """Check for bear flag - return as list"""
-    pattern = self.detect_bear_flag(closes, highs, lows)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_bear_flag(self, closes, highs, lows):
+       """Check for bear flag - return as list"""
+       pattern = self.detect_bear_flag(closes, highs, lows)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_wedge_patterns(self, highs, lows, closes):
-    """Check for wedge patterns - return as list"""
-    pattern = self.detect_wedge_patterns(highs, lows, closes)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_wedge_patterns(self, highs, lows, closes):
+       """Check for wedge patterns - return as list"""
+       pattern = self.detect_wedge_patterns(highs, lows, closes)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_cup_and_handle(self, closes, highs, lows):
-    """Check for cup and handle - return as list"""
-    pattern = self.detect_cup_and_handle(closes, highs, lows)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_cup_and_handle(self, closes, highs, lows):
+       """Check for cup and handle - return as list"""
+       pattern = self.detect_cup_and_handle(closes, highs, lows)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_rectangle(self, highs, lows):
-    """Check for rectangle - return as list"""
-    pattern = self.detect_rectangle(highs, lows)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_rectangle(self, highs, lows):
+       """Check for rectangle - return as list"""
+       pattern = self.detect_rectangle(highs, lows)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-def check_existing_patterns(self, df):
-    """Check for existing patterns - return as list"""
-    pattern = self.detect_existing_patterns(df)
-    return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+   def check_existing_patterns(self, df):
+       """Check for existing patterns - return as list"""
+       pattern = self.detect_existing_patterns(df)
+       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
     
-    def detect_pattern(self, df):
-        """Advanced pattern detection with multiple pattern types"""
+   def detect_pattern(self, df):
+       """Advanced pattern detection with multiple pattern types"""
         try:
             if len(df) < 20:
                 return {
