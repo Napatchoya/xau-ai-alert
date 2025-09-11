@@ -3024,7 +3024,7 @@ def pattern_status():
                 "message": "Cannot fetch sufficient shared data"
             })
         
-        detector = SimplePatternDetector()
+        detector = AdvancedPatternDetector()
         all_patterns = detector.detect_all_patterns(shared_df.tail(50))
         pattern_info = all_patterns[0]  # ใช้ pattern แรกสำหรับการแสดงผลหลัก
         
