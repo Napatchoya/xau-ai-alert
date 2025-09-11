@@ -3085,8 +3085,6 @@ def run_pattern_bot():
                             time.sleep(3)  # รอ 3 วินาที
                             # ส่งรูปทฤษฎีพร้อมคำอธิบายแบบ Master Class
                             send_pattern_theory_explanation(pattern_info['pattern_name'], pattern_description)
-                            # ส่งรูปทฤษฎีพร้อมคำอธิบายแบบ Master Class
-                            send_pattern_theory_explanation(pattern_info['pattern_name'], pattern_description)
                             # ส่งรายละเอียดของทุก patterns ที่พบ (ถ้ามีหลายตัว)
                             if len(all_patterns) > 1:
                                 time.sleep(5)  # รอ 5 วินาที
