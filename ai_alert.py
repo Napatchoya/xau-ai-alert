@@ -1933,7 +1933,6 @@ EMA21: {ema21} ({ema21_status})
 
 
 # ====================== Extended Pattern Detection System ======================
-
 class AdvancedPatternDetector:
     def __init__(self):
         self.patterns = {
@@ -2005,18 +2004,18 @@ class AdvancedPatternDetector:
                     'pattern_name': 'NO_PATTERN',
                     'confidence': 0.50,
                     'method': 'NO_PATTERNS_FOUND'
-                    }]
+                }]
         
-                # กรอง patterns ที่มีความมั่นใจสูงกว่า 60% และไม่ใช่ NO_PATTERN
-                valid_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60]
+            # กรอง patterns ที่มีความมั่นใจสูงกว่า 60% และไม่ใช่ NO_PATTERN
+            valid_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60]
         
-                if not valid_patterns:
-                    return [{
-                        'pattern_id': 0,
-                        'pattern_name': 'NO_PATTERN',
-                        'confidence': 0.50,
-                        'method': 'LOW_CONFIDENCE_PATTERNS'
-                    }]
+            if not valid_patterns:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'LOW_CONFIDENCE_PATTERNS'
+                }]
         
             # เรียงตาม confidence สูงสุด
             valid_patterns.sort(key=lambda x: x['confidence'], reverse=True)
@@ -2031,231 +2030,231 @@ class AdvancedPatternDetector:
                 'method': 'ERROR'
             }]
 
-   def detect_all_candlestick_patterns(self, df):
-       """Detect ALL candlestick patterns instead of just the first one"""
-       try:
-           patterns_found = []
-           recent_data = df.tail(5)
-           if len(recent_data) < 3:
-               return patterns_found
+    def detect_all_candlestick_patterns(self, df):
+        """Detect ALL candlestick patterns instead of just the first one"""
+        try:
+            patterns_found = []
+            recent_data = df.tail(5)
+            if len(recent_data) < 3:
+                return patterns_found
         
-           # Single candlestick patterns
-           last_candle = recent_data.iloc[-1]
-           single_patterns = self.detect_all_single_candlestick(last_candle)
-           patterns_found.extend(single_patterns)
+            # Single candlestick patterns
+            last_candle = recent_data.iloc[-1]
+            single_patterns = self.detect_all_single_candlestick(last_candle)
+            patterns_found.extend(single_patterns)
         
-           # Two candlestick patterns
-           if len(recent_data) >= 2:
-               two_patterns = self.detect_all_two_candlestick(recent_data.tail(2))
-               patterns_found.extend(two_patterns)
+            # Two candlestick patterns
+            if len(recent_data) >= 2:
+                two_patterns = self.detect_all_two_candlestick(recent_data.tail(2))
+                patterns_found.extend(two_patterns)
         
-           # Three candlestick patterns
-           if len(recent_data) >= 3:
-               three_patterns = self.detect_all_three_candlestick(recent_data.tail(3))
-               patterns_found.extend(three_patterns)
+            # Three candlestick patterns
+            if len(recent_data) >= 3:
+                three_patterns = self.detect_all_three_candlestick(recent_data.tail(3))
+                patterns_found.extend(three_patterns)
         
-           return patterns_found
+            return patterns_found
         
-       except Exception as e:
-           print(f"All candlestick patterns error: {e}")
-           return []
+        except Exception as e:
+            print(f"All candlestick patterns error: {e}")
+            return []
 
-   def detect_all_single_candlestick(self, candle):
-       """Detect ALL single candlestick patterns"""
-       try:
-           patterns = []
-           open_price = float(candle['open'])
-           high_price = float(candle['high'])
-           low_price = float(candle['low'])
-           close_price = float(candle['close'])
+    def detect_all_single_candlestick(self, candle):
+        """Detect ALL single candlestick patterns"""
+        try:
+            patterns = []
+            open_price = float(candle['open'])
+            high_price = float(candle['high'])
+            low_price = float(candle['low'])
+            close_price = float(candle['close'])
         
-           body_size = abs(close_price - open_price)
-           upper_shadow = high_price - max(open_price, close_price)
-           lower_shadow = min(open_price, close_price) - low_price
-           candle_range = high_price - low_price
+            body_size = abs(close_price - open_price)
+            upper_shadow = high_price - max(open_price, close_price)
+            lower_shadow = min(open_price, close_price) - low_price
+            candle_range = high_price - low_price
         
-           if candle_range == 0:
-               return patterns
+            if candle_range == 0:
+                return patterns
         
-           body_ratio = body_size / candle_range
-           upper_ratio = upper_shadow / candle_range
-           lower_ratio = lower_shadow / candle_range
+            body_ratio = body_size / candle_range
+            upper_ratio = upper_shadow / candle_range
+            lower_ratio = lower_shadow / candle_range
         
-           # ตรวจสอบทุก patterns แทนการ return แต่อันแรก
-           if body_ratio < 0.1 and (upper_ratio > 0.3 or lower_ratio > 0.3):
-               patterns.append({'pattern_id': 16, 'pattern_name': 'DOJI', 'confidence': 0.80, 'method': 'SINGLE_CANDLESTICK'})
+            # ตรวจสอบทุก patterns แทนการ return แต่อันแรก
+            if body_ratio < 0.1 and (upper_ratio > 0.3 or lower_ratio > 0.3):
+                patterns.append({'pattern_id': 16, 'pattern_name': 'DOJI', 'confidence': 0.80, 'method': 'SINGLE_CANDLESTICK'})
         
-           if body_ratio < 0.3 and lower_ratio > 0.6 and upper_ratio < 0.1:
-               patterns.append({'pattern_id': 17, 'pattern_name': 'HAMMER', 'confidence': 0.75, 'method': 'SINGLE_CANDLESTICK'})
+            if body_ratio < 0.3 and lower_ratio > 0.6 and upper_ratio < 0.1:
+                patterns.append({'pattern_id': 17, 'pattern_name': 'HAMMER', 'confidence': 0.75, 'method': 'SINGLE_CANDLESTICK'})
         
-           if body_ratio < 0.3 and upper_ratio > 0.6 and lower_ratio < 0.1:
-               patterns.append({'pattern_id': 19, 'pattern_name': 'SHOOTING_STAR', 'confidence': 0.75, 'method': 'SINGLE_CANDLESTICK'})
+            if body_ratio < 0.3 and upper_ratio > 0.6 and lower_ratio < 0.1:
+                patterns.append({'pattern_id': 19, 'pattern_name': 'SHOOTING_STAR', 'confidence': 0.75, 'method': 'SINGLE_CANDLESTICK'})
         
-           if body_ratio < 0.3 and upper_ratio > 0.6 and lower_ratio < 0.1 and close_price > open_price:
-               patterns.append({'pattern_id': 20, 'pattern_name': 'INVERTED_HAMMER', 'confidence': 0.70, 'method': 'SINGLE_CANDLESTICK'})
+            if body_ratio < 0.3 and upper_ratio > 0.6 and lower_ratio < 0.1 and close_price > open_price:
+                patterns.append({'pattern_id': 20, 'pattern_name': 'INVERTED_HAMMER', 'confidence': 0.70, 'method': 'SINGLE_CANDLESTICK'})
         
-           if body_ratio > 0.9:
-               patterns.append({'pattern_id': 21, 'pattern_name': 'MARUBOZU', 'confidence': 0.85, 'method': 'SINGLE_CANDLESTICK'})
+            if body_ratio > 0.9:
+                patterns.append({'pattern_id': 21, 'pattern_name': 'MARUBOZU', 'confidence': 0.85, 'method': 'SINGLE_CANDLESTICK'})
         
-           if body_ratio < 0.3 and upper_ratio > 0.2 and lower_ratio > 0.2:
-               patterns.append({'pattern_id': 22, 'pattern_name': 'SPINNING_TOP', 'confidence': 0.65, 'method': 'SINGLE_CANDLESTICK'})
+            if body_ratio < 0.3 and upper_ratio > 0.2 and lower_ratio > 0.2:
+                patterns.append({'pattern_id': 22, 'pattern_name': 'SPINNING_TOP', 'confidence': 0.65, 'method': 'SINGLE_CANDLESTICK'})
         
-           return patterns
+            return patterns
         
-       except Exception as e:
-           print(f"All single candlestick error: {e}")
-           return []
+        except Exception as e:
+            print(f"All single candlestick error: {e}")
+            return []
 
-   def detect_all_two_candlestick(self, candles):
-       """Detect ALL two-candlestick patterns"""
-       try:
-           patterns = []
-           first = candles.iloc[0]
-           second = candles.iloc[1]
+    def detect_all_two_candlestick(self, candles):
+        """Detect ALL two-candlestick patterns"""
+        try:
+            patterns = []
+            first = candles.iloc[0]
+            second = candles.iloc[1]
         
-           first_body = abs(first['close'] - first['open'])
-           second_body = abs(second['close'] - second['open'])
+            first_body = abs(first['close'] - first['open'])
+            second_body = abs(second['close'] - second['open'])
         
-           # ตรวจสอบทุก patterns
-           if (first['close'] < first['open'] and second['close'] > second['open'] and
-               second['open'] < first['close'] and second['close'] > first['open'] and
-               second_body > first_body * 1.1):
-               patterns.append({'pattern_id': 23, 'pattern_name': 'ENGULFING_BULLISH', 'confidence': 0.80, 'method': 'TWO_CANDLESTICK'})
+            # ตรวจสอบทุก patterns
+            if (first['close'] < first['open'] and second['close'] > second['open'] and
+                second['open'] < first['close'] and second['close'] > first['open'] and
+                second_body > first_body * 1.1):
+                patterns.append({'pattern_id': 23, 'pattern_name': 'ENGULFING_BULLISH', 'confidence': 0.80, 'method': 'TWO_CANDLESTICK'})
         
-           if (first['close'] > first['open'] and second['close'] < second['open'] and
-               second['open'] > first['close'] and second['close'] < first['open'] and
-               second_body > first_body * 1.1):
-               patterns.append({'pattern_id': 24, 'pattern_name': 'ENGULFING_BEARISH', 'confidence': 0.80, 'method': 'TWO_CANDLESTICK'})
+            if (first['close'] > first['open'] and second['close'] < second['open'] and
+                second['open'] > first['close'] and second['close'] < first['open'] and
+                second_body > first_body * 1.1):
+                patterns.append({'pattern_id': 24, 'pattern_name': 'ENGULFING_BEARISH', 'confidence': 0.80, 'method': 'TWO_CANDLESTICK'})
         
-           if (first['close'] < first['open'] and second['close'] > second['open'] and
-               second['open'] < first['low'] and second['close'] > (first['open'] + first['close']) / 2):
-               patterns.append({'pattern_id': 25, 'pattern_name': 'PIERCING_LINE', 'confidence': 0.75, 'method': 'TWO_CANDLESTICK'})
+            if (first['close'] < first['open'] and second['close'] > second['open'] and
+                second['open'] < first['low'] and second['close'] > (first['open'] + first['close']) / 2):
+                patterns.append({'pattern_id': 25, 'pattern_name': 'PIERCING_LINE', 'confidence': 0.75, 'method': 'TWO_CANDLESTICK'})
         
-           if (first['close'] > first['open'] and second['close'] < second['open'] and
-               second['open'] > first['high'] and second['close'] < (first['open'] + first['close']) / 2):
-               patterns.append({'pattern_id': 26, 'pattern_name': 'DARK_CLOUD_COVER', 'confidence': 0.75, 'method': 'TWO_CANDLESTICK'})
+            if (first['close'] > first['open'] and second['close'] < second['open'] and
+                second['open'] > first['high'] and second['close'] < (first['open'] + first['close']) / 2):
+                patterns.append({'pattern_id': 26, 'pattern_name': 'DARK_CLOUD_COVER', 'confidence': 0.75, 'method': 'TWO_CANDLESTICK'})
         
-           if (first['close'] < first['open'] and second['close'] > second['open'] and
-               second['open'] > first['close'] and second['close'] < first['open'] and
-               second_body < first_body * 0.6):
-               patterns.append({'pattern_id': 31, 'pattern_name': 'HARAMI_BULLISH', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'})
+            if (first['close'] < first['open'] and second['close'] > second['open'] and
+                second['open'] > first['close'] and second['close'] < first['open'] and
+                second_body < first_body * 0.6):
+                patterns.append({'pattern_id': 31, 'pattern_name': 'HARAMI_BULLISH', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'})
         
-           if (first['close'] > first['open'] and second['close'] < second['open'] and
-               second['open'] < first['close'] and second['close'] > first['open'] and
-               second_body < first_body * 0.6):
-               patterns.append({'pattern_id': 32, 'pattern_name': 'HARAMI_BEARISH', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'})
+            if (first['close'] > first['open'] and second['close'] < second['open'] and
+                second['open'] < first['close'] and second['close'] > first['open'] and
+                second_body < first_body * 0.6):
+                patterns.append({'pattern_id': 32, 'pattern_name': 'HARAMI_BEARISH', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'})
         
-           return patterns
+            return patterns
         
-       except Exception as e:
-           print(f"All two candlestick error: {e}")
-           return []
+        except Exception as e:
+            print(f"All two candlestick error: {e}")
+            return []
 
-   def detect_all_three_candlestick(self, candles):
-       """Detect ALL three-candlestick patterns"""
-       try:
-           patterns = []
-           first = candles.iloc[0]
-           second = candles.iloc[1]
-           third = candles.iloc[2]
+    def detect_all_three_candlestick(self, candles):
+        """Detect ALL three-candlestick patterns"""
+        try:
+            patterns = []
+            first = candles.iloc[0]
+            second = candles.iloc[1]
+            third = candles.iloc[2]
         
-           # ตรวจสอบทุก patterns
-           if (first['close'] < first['open'] and third['close'] > third['open'] and
-               abs(second['close'] - second['open']) < abs(first['close'] - first['open']) * 0.3 and
-               second['high'] < first['close'] and third['open'] > second['high'] and
-               third['close'] > (first['open'] + first['close']) / 2):
-               patterns.append({'pattern_id': 27, 'pattern_name': 'MORNING_STAR', 'confidence': 0.85, 'method': 'THREE_CANDLESTICK'})
+            # ตรวจสอบทุก patterns
+            if (first['close'] < first['open'] and third['close'] > third['open'] and
+                abs(second['close'] - second['open']) < abs(first['close'] - first['open']) * 0.3 and
+                second['high'] < first['close'] and third['open'] > second['high'] and
+                third['close'] > (first['open'] + first['close']) / 2):
+                patterns.append({'pattern_id': 27, 'pattern_name': 'MORNING_STAR', 'confidence': 0.85, 'method': 'THREE_CANDLESTICK'})
         
-           if (first['close'] > first['open'] and third['close'] < third['open'] and
-               abs(second['close'] - second['open']) < abs(first['close'] - first['open']) * 0.3 and
-               second['low'] > first['close'] and third['open'] < second['low'] and
-               third['close'] < (first['open'] + first['close']) / 2):
-               patterns.append({'pattern_id': 28, 'pattern_name': 'EVENING_STAR', 'confidence': 0.85, 'method': 'THREE_CANDLESTICK'})
+            if (first['close'] > first['open'] and third['close'] < third['open'] and
+                abs(second['close'] - second['open']) < abs(first['close'] - first['open']) * 0.3 and
+                second['low'] > first['close'] and third['open'] < second['low'] and
+                third['close'] < (first['open'] + first['close']) / 2):
+                patterns.append({'pattern_id': 28, 'pattern_name': 'EVENING_STAR', 'confidence': 0.85, 'method': 'THREE_CANDLESTICK'})
         
-           if (first['close'] > first['open'] and second['close'] > second['open'] and third['close'] > third['open'] and
-               second['close'] > first['close'] and third['close'] > second['close'] and
-               second['open'] > first['open'] and third['open'] > second['open']):
-               patterns.append({'pattern_id': 29, 'pattern_name': 'THREE_WHITE_SOLDIERS', 'confidence': 0.80, 'method': 'THREE_CANDLESTICK'})
+            if (first['close'] > first['open'] and second['close'] > second['open'] and third['close'] > third['open'] and
+                second['close'] > first['close'] and third['close'] > second['close'] and
+                second['open'] > first['open'] and third['open'] > second['open']):
+                patterns.append({'pattern_id': 29, 'pattern_name': 'THREE_WHITE_SOLDIERS', 'confidence': 0.80, 'method': 'THREE_CANDLESTICK'})
         
-           if (first['close'] < first['open'] and second['close'] < second['open'] and third['close'] < third['open'] and
-               second['close'] < first['close'] and third['close'] < second['close'] and
-               second['open'] < first['open'] and third['open'] < second['open']):
-               patterns.append({'pattern_id': 30, 'pattern_name': 'THREE_BLACK_CROWS', 'confidence': 0.80, 'method': 'THREE_CANDLESTICK'})
+            if (first['close'] < first['open'] and second['close'] < second['open'] and third['close'] < third['open'] and
+                second['close'] < first['close'] and third['close'] < second['close'] and
+                second['open'] < first['open'] and third['open'] < second['open']):
+                patterns.append({'pattern_id': 30, 'pattern_name': 'THREE_BLACK_CROWS', 'confidence': 0.80, 'method': 'THREE_CANDLESTICK'})
         
-           return patterns
+            return patterns
         
-       except Exception as e:
-           print(f"All three candlestick error: {e}")
-           return []
+        except Exception as e:
+            print(f"All three candlestick error: {e}")
+            return []
 
-   def detect_all_chart_patterns(self, df):
-       """Detect ALL chart patterns"""
-       try:
-           patterns_found = []
-           highs = df['high'].values[-30:]
-           lows = df['low'].values[-30:]
-           closes = df['close'].values[-30:]
+    def detect_all_chart_patterns(self, df):
+        """Detect ALL chart patterns"""
+        try:
+            patterns_found = []
+            highs = df['high'].values[-30:]
+            lows = df['low'].values[-30:]
+            closes = df['close'].values[-30:]
         
-           # ตรวจสอบทุก chart patterns
-           patterns_found.extend(self.check_descending_triangle(highs, lows))
-           patterns_found.extend(self.check_symmetrical_triangle(highs, lows))
-           patterns_found.extend(self.check_bear_flag(closes, highs, lows))
-           patterns_found.extend(self.check_wedge_patterns(highs, lows, closes))
-           patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
-           patterns_found.extend(self.check_rectangle(highs, lows))
-           patterns_found.extend(self.check_existing_patterns(df))
+            # ตรวจสอบทุก chart patterns
+            patterns_found.extend(self.check_descending_triangle(highs, lows))
+            patterns_found.extend(self.check_symmetrical_triangle(highs, lows))
+            patterns_found.extend(self.check_bear_flag(closes, highs, lows))
+            patterns_found.extend(self.check_wedge_patterns(highs, lows, closes))
+            patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
+            patterns_found.extend(self.check_rectangle(highs, lows))
+            patterns_found.extend(self.check_existing_patterns(df))
         
-           # กรอก patterns ที่ซ้ำกัน
-           unique_patterns = []
-           seen_patterns = set()
-           for pattern in patterns_found:
-               if pattern['pattern_name'] not in seen_patterns:
-                   unique_patterns.append(pattern)
-                   seen_patterns.add(pattern['pattern_name'])
+            # กรอง patterns ที่ซ้ำกัน
+            unique_patterns = []
+            seen_patterns = set()
+            for pattern in patterns_found:
+                if pattern['pattern_name'] not in seen_patterns:
+                    unique_patterns.append(pattern)
+                    seen_patterns.add(pattern['pattern_name'])
         
-           return unique_patterns
+            return unique_patterns
         
-       except Exception as e:
-           print(f"All chart patterns error: {e}")
-           return []
+        except Exception as e:
+            print(f"All chart patterns error: {e}")
+            return []
 
-   def check_descending_triangle(self, highs, lows):
-       """Check for descending triangle - return as list"""
-       pattern = self.detect_descending_triangle(highs, lows)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_descending_triangle(self, highs, lows):
+        """Check for descending triangle - return as list"""
+        pattern = self.detect_descending_triangle(highs, lows)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_symmetrical_triangle(self, highs, lows):
-       """Check for symmetrical triangle - return as list"""
-       pattern = self.detect_symmetrical_triangle(highs, lows)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_symmetrical_triangle(self, highs, lows):
+        """Check for symmetrical triangle - return as list"""
+        pattern = self.detect_symmetrical_triangle(highs, lows)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_bear_flag(self, closes, highs, lows):
-       """Check for bear flag - return as list"""
-       pattern = self.detect_bear_flag(closes, highs, lows)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_bear_flag(self, closes, highs, lows):
+        """Check for bear flag - return as list"""
+        pattern = self.detect_bear_flag(closes, highs, lows)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_wedge_patterns(self, highs, lows, closes):
-       """Check for wedge patterns - return as list"""
-       pattern = self.detect_wedge_patterns(highs, lows, closes)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_wedge_patterns(self, highs, lows, closes):
+        """Check for wedge patterns - return as list"""
+        pattern = self.detect_wedge_patterns(highs, lows, closes)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_cup_and_handle(self, closes, highs, lows):
-       """Check for cup and handle - return as list"""
-       pattern = self.detect_cup_and_handle(closes, highs, lows)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_cup_and_handle(self, closes, highs, lows):
+        """Check for cup and handle - return as list"""
+        pattern = self.detect_cup_and_handle(closes, highs, lows)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_rectangle(self, highs, lows):
-       """Check for rectangle - return as list"""
-       pattern = self.detect_rectangle(highs, lows)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_rectangle(self, highs, lows):
+        """Check for rectangle - return as list"""
+        pattern = self.detect_rectangle(highs, lows)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
 
-   def check_existing_patterns(self, df):
-       """Check for existing patterns - return as list"""
-       pattern = self.detect_existing_patterns(df)
-       return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
+    def check_existing_patterns(self, df):
+        """Check for existing patterns - return as list"""
+        pattern = self.detect_existing_patterns(df)
+        return [pattern] if pattern['pattern_name'] != 'NO_PATTERN' else []
     
-   def detect_pattern(self, df):
-       """Advanced pattern detection with multiple pattern types"""
+    def detect_pattern(self, df):
+        """Advanced pattern detection with multiple pattern types"""
         try:
             if len(df) < 20:
                 return {
@@ -2693,7 +2692,6 @@ class AdvancedPatternDetector:
             
             # ASCENDING TRIANGLE
             resistance = np.max(highs[-15:])
-            ascending_support = 2 + 0.2 * np.arange(len(highs))
             support_trend = np.polyfit(range(len(lows)), lows, 1)[0]
             
             if support_trend > 0.001:  # Ascending support
@@ -2711,6 +2709,223 @@ class AdvancedPatternDetector:
             
         except Exception as e:
             return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'EXISTING_ERROR'}
+
+    def detect_double_bottom(self, lows, closes):
+        """Detect double bottom pattern"""
+        try:
+            if len(lows) < 20:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INSUFFICIENT_DATA'}
+            
+            # Find valleys (local minima)
+            valleys = []
+            for i in range(1, len(lows)-1):
+                if lows[i] < lows[i-1] and lows[i] < lows[i+1]:
+                    valleys.append((i, lows[i]))
+            
+            if len(valleys) >= 2:
+                last_two_valleys = valleys[-2:]
+                # Check if valleys are at similar levels
+                if abs(last_two_valleys[0][1] - last_two_valleys[1][1]) / last_two_valleys[0][1] < 0.02:
+                    # Check if there's recovery between valleys
+                    between_idx_start = last_two_valleys[0][0]
+                    between_idx_end = last_two_valleys[1][0]
+                    peak_between = max(lows[between_idx_start:between_idx_end+1])
+                    if peak_between > last_two_valleys[0][1] * 1.02:
+                        return {'pattern_id': 3, 'pattern_name': 'DOUBLE_BOTTOM', 'confidence': 0.75, 'method': 'RULE_BASED'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_DOUBLE_BOTTOM'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'DOUBLE_BOTTOM_ERROR'}
+
+    def detect_inverse_head_shoulders(self, lows, closes):
+        """Detect inverse head and shoulders pattern"""
+        try:
+            if len(lows) < 15:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INSUFFICIENT_DATA'}
+            
+            # Find the lowest point (head) and shoulders
+            mid_idx = len(lows) // 2
+            if mid_idx >= 2 and mid_idx + 2 < len(lows):
+                left_shoulder = lows[mid_idx-2]
+                head = lows[mid_idx]
+                right_shoulder = lows[mid_idx+2]
+                
+                # Head should be lower than both shoulders
+                if head < left_shoulder and head < right_shoulder:
+                    # Shoulders should be at similar levels
+                    if abs(left_shoulder - right_shoulder) / left_shoulder < 0.03:
+                        return {'pattern_id': 13, 'pattern_name': 'INVERSE_HEAD_SHOULDERS', 'confidence': 0.75, 'method': 'RULE_BASED'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_INV_HEAD_SHOULDERS'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'INV_HEAD_SHOULDERS_ERROR'}
+
+    def detect_diamond_pattern(self, highs, lows):
+        """Detect diamond pattern"""
+        try:
+            if len(highs) < 25:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INSUFFICIENT_DATA'}
+            
+            # Diamond pattern: expanding then contracting volatility
+            first_quarter = highs[:len(highs)//4]
+            second_quarter = highs[len(highs)//4:len(highs)//2]
+            third_quarter = highs[len(highs)//2:3*len(highs)//4]
+            fourth_quarter = highs[3*len(highs)//4:]
+            
+            # Calculate volatility for each quarter
+            vol1 = np.std(first_quarter)
+            vol2 = np.std(second_quarter)
+            vol3 = np.std(third_quarter)
+            vol4 = np.std(fourth_quarter)
+            
+            # Check for expansion then contraction
+            if vol2 > vol1 and vol3 > vol2 and vol4 < vol3 and vol4 < vol2:
+                return {'pattern_id': 15, 'pattern_name': 'DIAMOND', 'confidence': 0.65, 'method': 'VOLATILITY_ANALYSIS'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_DIAMOND'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'DIAMOND_ERROR'}
+
+    def detect_pennant_pattern(self, highs, lows, closes):
+        """Detect pennant pattern"""
+        try:
+            if len(closes) < 20:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INSUFFICIENT_DATA'}
+            
+            # Check for strong move (flagpole)
+            flagpole_start = closes[0]
+            flagpole_end = closes[len(closes)//2]
+            flagpole_move = abs(flagpole_end - flagpole_start) / flagpole_start
+            
+            if flagpole_move > 0.05:  # At least 5% move
+                # Check for converging pennant
+                pennant_highs = highs[len(highs)//2:]
+                pennant_lows = lows[len(lows)//2:]
+                
+                high_slope = (pennant_highs[-1] - pennant_highs[0]) / len(pennant_highs)
+                low_slope = (pennant_lows[-1] - pennant_lows[0]) / len(pennant_lows)
+                
+                # Converging slopes
+                if (high_slope < 0 and low_slope > 0) or (high_slope > 0 and low_slope < 0):
+                    convergence = abs(pennant_highs[-1] - pennant_lows[-1]) < abs(pennant_highs[0] - pennant_lows[0]) * 0.6
+                    if convergence:
+                        return {'pattern_id': 9, 'pattern_name': 'PENNANT', 'confidence': 0.70, 'method': 'CHART_PATTERN'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_PENNANT'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'PENNANT_ERROR'}
+
+    def detect_hanging_man(self, candle):
+        """Detect hanging man pattern (similar to hammer but bearish context)"""
+        try:
+            open_price = float(candle['open'])
+            high_price = float(candle['high'])
+            low_price = float(candle['low'])
+            close_price = float(candle['close'])
+            
+            body_size = abs(close_price - open_price)
+            upper_shadow = high_price - max(open_price, close_price)
+            lower_shadow = min(open_price, close_price) - low_price
+            candle_range = high_price - low_price
+            
+            if candle_range == 0:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INVALID_CANDLE'}
+            
+            body_ratio = body_size / candle_range
+            upper_ratio = upper_shadow / candle_range
+            lower_ratio = lower_shadow / candle_range
+            
+            # Small body at top, long lower shadow (bearish context)
+            if body_ratio < 0.3 and lower_ratio > 0.6 and upper_ratio < 0.1 and close_price < open_price:
+                return {'pattern_id': 18, 'pattern_name': 'HANGING_MAN', 'confidence': 0.75, 'method': 'SINGLE_CANDLESTICK'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_HANGING_MAN'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'HANGING_MAN_ERROR'}
+
+    def detect_tweezer_patterns(self, candles):
+        """Detect tweezer top and bottom patterns"""
+        try:
+            if len(candles) < 2:
+                return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'INSUFFICIENT_CANDLES'}
+            
+            first = candles.iloc[0]
+            second = candles.iloc[1]
+            
+            # TWEEZER TOP - Similar highs at resistance
+            if abs(first['high'] - second['high']) / first['high'] < 0.005:
+                if first['high'] > first['close'] and second['high'] > second['close']:
+                    return {'pattern_id': 33, 'pattern_name': 'TWEEZER_TOP', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
+            
+            # TWEEZER BOTTOM - Similar lows at support
+            if abs(first['low'] - second['low']) / first['low'] < 0.005:
+                if first['low'] < first['close'] and second['low'] < second['close']:
+                    return {'pattern_id': 34, 'pattern_name': 'TWEEZER_BOTTOM', 'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
+            
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.50, 'method': 'NO_TWEEZER'}
+            
+        except Exception as e:
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'TWEEZER_ERROR'}
+
+    def get_pattern_info(self, pattern_name):
+        """Get detailed information about a pattern"""
+        pattern_info = {
+            'HEAD_SHOULDERS': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'high'},
+            'DOUBLE_TOP': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'medium'},
+            'DOUBLE_BOTTOM': {'type': 'reversal', 'direction': 'bullish', 'reliability': 'medium'},
+            'ASCENDING_TRIANGLE': {'type': 'continuation', 'direction': 'bullish', 'reliability': 'medium'},
+            'DESCENDING_TRIANGLE': {'type': 'continuation', 'direction': 'bearish', 'reliability': 'medium'},
+            'SYMMETRICAL_TRIANGLE': {'type': 'neutral', 'direction': 'breakout', 'reliability': 'medium'},
+            'BULL_FLAG': {'type': 'continuation', 'direction': 'bullish', 'reliability': 'high'},
+            'BEAR_FLAG': {'type': 'continuation', 'direction': 'bearish', 'reliability': 'high'},
+            'WEDGE_RISING': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'medium'},
+            'WEDGE_FALLING': {'type': 'reversal', 'direction': 'bullish', 'reliability': 'medium'},
+            'CUP_AND_HANDLE': {'type': 'continuation', 'direction': 'bullish', 'reliability': 'high'},
+            'RECTANGLE': {'type': 'neutral', 'direction': 'breakout', 'reliability': 'low'},
+            'DOJI': {'type': 'reversal', 'direction': 'neutral', 'reliability': 'medium'},
+            'HAMMER': {'type': 'reversal', 'direction': 'bullish', 'reliability': 'medium'},
+            'SHOOTING_STAR': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'medium'},
+            'ENGULFING_BULLISH': {'type': 'reversal', 'direction': 'bullish', 'reliability': 'high'},
+            'ENGULFING_BEARISH': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'high'},
+            'MORNING_STAR': {'type': 'reversal', 'direction': 'bullish', 'reliability': 'high'},
+            'EVENING_STAR': {'type': 'reversal', 'direction': 'bearish', 'reliability': 'high'}
+        }
+        return pattern_info.get(pattern_name, {'type': 'unknown', 'direction': 'unknown', 'reliability': 'unknown'})
+
+    def validate_pattern(self, pattern_result, df):
+        """Validate pattern with additional checks"""
+        try:
+            if pattern_result['pattern_name'] == 'NO_PATTERN':
+                return pattern_result
+            
+            # Add volume confirmation if available
+            if 'volume' in df.columns:
+                recent_volume = df['volume'].tail(5).mean()
+                avg_volume = df['volume'].tail(20).mean()
+                volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 1
+                
+                # Adjust confidence based on volume
+                if volume_ratio > 1.2:
+                    pattern_result['confidence'] = min(0.95, pattern_result['confidence'] * 1.1)
+                elif volume_ratio < 0.8:
+                    pattern_result['confidence'] = max(0.3, pattern_result['confidence'] * 0.9)
+            
+            # Add trend context
+            closes = df['close'].tail(20).values
+            trend_slope = (closes[-1] - closes[0]) / len(closes)
+            pattern_result['trend_context'] = 'uptrend' if trend_slope > 0 else 'downtrend'
+            
+            return pattern_result
+            
+        except Exception as e:
+            pattern_result['validation_error'] = str(e)
+            return pattern_result
+            
 
 # ====================== Utilities ======================
 
