@@ -1841,7 +1841,7 @@ def run_pattern_ai_shared(shared_df):
         if shared_df is None or len(shared_df) < 20:
             return "❌ ไม่สามารถดึงข้อมูลสำหรับ Pattern Detection ได้"
         
-        detector = SimplePatternDetector()
+        detector = AdvancedPatternDetector()
         all_patterns = detector.detect_all_patterns(shared_df.tail(50))
         pattern_info = all_patterns[0]  # ใช้ pattern แรกสำหรับการแสดงผลหลัก
         trading_signals = detector.predict_signals(shared_df)
