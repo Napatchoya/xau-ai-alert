@@ -3076,42 +3076,42 @@ class AdvancedPatternDetector:
             return []
 
     def detect_all_chart_patterns(self, df):
-    """Detect ALL chart patterns - FIXED VERSION with all 35 patterns"""
-    try:
-        patterns_found = []
-        highs = df['high'].values[-30:]
-        lows = df['low'].values[-30:]
-        closes = df['close'].values[-30:]
+        """Detect ALL chart patterns - FIXED VERSION with all 35 patterns"""
+        try:
+            patterns_found = []
+            highs = df['high'].values[-30:]
+            lows = df['low'].values[-30:]
+            closes = df['close'].values[-30:]
         
-        # ตรวจสอบ Chart Patterns ทั้งหมด
-        patterns_found.extend(self.check_head_shoulders(df))
-        patterns_found.extend(self.check_double_top(highs, lows))
-        patterns_found.extend(self.check_double_bottom(lows, closes))  # เพิ่ม
-        patterns_found.extend(self.check_ascending_triangle(highs, lows))
-        patterns_found.extend(self.check_descending_triangle(highs, lows))
-        patterns_found.extend(self.check_bull_flag(closes, highs, lows))
-        patterns_found.extend(self.check_bear_flag(closes, highs, lows))
-        patterns_found.extend(self.check_symmetrical_triangle(highs, lows))
-        patterns_found.extend(self.check_wedge_patterns(highs, lows, closes))
-        patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
-        patterns_found.extend(self.check_inverse_head_shoulders(lows, closes))  # เพิ่ม
-        patterns_found.extend(self.check_rectangle(highs, lows))
-        patterns_found.extend(self.check_diamond_pattern(highs, lows))  # เพิ่ม
-        patterns_found.extend(self.check_pennant_pattern(highs, lows, closes))  # เพิ่ม
+            # ตรวจสอบ Chart Patterns ทั้งหมด
+            patterns_found.extend(self.check_head_shoulders(df))
+            patterns_found.extend(self.check_double_top(highs, lows))
+            patterns_found.extend(self.check_double_bottom(lows, closes))  # เพิ่ม
+            patterns_found.extend(self.check_ascending_triangle(highs, lows))
+            patterns_found.extend(self.check_descending_triangle(highs, lows))
+            patterns_found.extend(self.check_bull_flag(closes, highs, lows))
+            patterns_found.extend(self.check_bear_flag(closes, highs, lows))
+            patterns_found.extend(self.check_symmetrical_triangle(highs, lows))
+            patterns_found.extend(self.check_wedge_patterns(highs, lows, closes))
+            patterns_found.extend(self.check_cup_and_handle(closes, highs, lows))
+            patterns_found.extend(self.check_inverse_head_shoulders(lows, closes))  # เพิ่ม
+            patterns_found.extend(self.check_rectangle(highs, lows))
+            patterns_found.extend(self.check_diamond_pattern(highs, lows))  # เพิ่ม
+            patterns_found.extend(self.check_pennant_pattern(highs, lows, closes))  # เพิ่ม
         
-        # กรอง patterns ที่ซ้ำกัน
-        unique_patterns = []
-        seen_patterns = set()
-        for pattern in patterns_found:
-            if pattern['pattern_name'] not in seen_patterns:
-                unique_patterns.append(pattern)
-                seen_patterns.add(pattern['pattern_name'])
+            # กรอง patterns ที่ซ้ำกัน
+            unique_patterns = []
+            seen_patterns = set()
+            for pattern in patterns_found:
+                if pattern['pattern_name'] not in seen_patterns:
+                    unique_patterns.append(pattern)
+                    seen_patterns.add(pattern['pattern_name'])
         
-        return unique_patterns
+            return unique_patterns
         
-    except Exception as e:
-        print(f"All chart patterns error: {e}")
-        return []    
+        except Exception as e:
+            print(f"All chart patterns error: {e}")
+            return []    
 
     def check_head_shoulders(self, df):
         """Check for head and shoulders - return as list"""
