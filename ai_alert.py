@@ -2719,9 +2719,6 @@ class AdvancedPatternDetector:
             34: "TWEEZER_BOTTOM"
         }
 
-
-    # เพิ่มเมธอด predict_signals ใน class AdvancedPatternDetector
-    # เพิ่มเมธอดที่หายไป
     def predict_signals(self, df):
         """Predict trading signals based on patterns and technical indicators"""
         try:
@@ -2851,7 +2848,6 @@ class AdvancedPatternDetector:
                 'pattern_confidence': 0.30
             }
 
-    # ยังคงใช้เมธอดอื่นๆ ที่มีอยู่แล้ว...
     def detect_all_patterns(self, df):
         """Detect ALL patterns instead of just the first one found"""
         try:
@@ -2912,7 +2908,7 @@ class AdvancedPatternDetector:
             patterns_found = []
             recent_data = df.tail(5)
             if len(recent_data) < 3:
-            return patterns_found
+                return patterns_found
         
             # Single candlestick patterns
             last_candle = recent_data.iloc[-1]
@@ -2928,9 +2924,9 @@ class AdvancedPatternDetector:
                 two_patterns = self.detect_all_two_candlestick(recent_data.tail(2))
                 patterns_found.extend(two_patterns)
             
-            # เพิ่ม Tweezer patterns
-            tweezer_patterns = self.check_tweezer_patterns(recent_data.tail(2))
-            patterns_found.extend(tweezer_patterns)
+                # เพิ่ม Tweezer patterns
+                tweezer_patterns = self.check_tweezer_patterns(recent_data.tail(2))
+                patterns_found.extend(tweezer_patterns)
         
             # Three candlestick patterns
             if len(recent_data) >= 3:
