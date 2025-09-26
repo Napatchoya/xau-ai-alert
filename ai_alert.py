@@ -2501,10 +2501,6 @@ class SimplePatternDetector:
             current_price = df['close'].iloc[-1]
             
             # ใช้ indicators ที่คำนวณไว้แล้วใน shared data
-        try:
-            current_rsi = float(df['rsi'].iloc[-1]) if not pd.isna(df['rsi'].iloc[-1]) else 50.0
-        except (KeyError, IndexError, ValueError):
-        current_rsi = 50.0           
             current_rsi = df['rsi'].iloc[-1] if not pd.isna(df['rsi'].iloc[-1]) else 50
             current_ema10 = df['ema'].iloc[-1] if not pd.isna(df['ema'].iloc[-1]) else current_price
             current_ema21 = df['ema_21'].iloc[-1] if not pd.isna(df['ema_21'].iloc[-1]) else current_price
