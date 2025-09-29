@@ -1145,7 +1145,7 @@ EMA21: $${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_p
         
         # 4) ส่งรายละเอียดแต่ละ pattern พร้อมรูป
         pattern_count = 1
-        for pattern in all_patterns[:4]:  # ส่งสูงสุด 4 patterns
+        for pattern in all_patterns[:100]:  # ส่งสูงสุด 100 patterns
             if pattern['pattern_name'] != 'NO_PATTERN':
                 # สร้างรูปทฤษฎีสำหรับแต่ละ pattern
                 theory_diagram = create_pattern_theory_diagram(pattern['pattern_name'])
