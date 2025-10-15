@@ -9990,7 +9990,7 @@ def run_harmonic_bot():
                     
                     # สร้างและส่งกราฟ
                     chart_result = analyze_and_send_telegram(
-                        shared_df, 'XAUUSD', '1H', send_telegram=True
+                        shared_df, 'XAUUSD', '1H', send_to_telegram=True
                     )
                     
                     print(f"✅ [{current_time}] Harmonic patterns sent to Telegram")
