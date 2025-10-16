@@ -7769,7 +7769,7 @@ PATTERN_THEORIES.update({
 
 # ============= ส่วนที่ 9: Main Function Integration (ต่อจากไฟล์ที่ 3) =============
 
-def analyze_and_send_telegram(df, symbol='UNKNOWN', timeframe='1H', send_to_telegram=True):
+def analyze_and_send_telegram(df, symbol='UNKNOWN', timeframe='1H', send_telegram=True):
     """
     ฟังก์ชันหลักสำหรับวิเคราะห์และส่งไปยัง Telegram
     """
