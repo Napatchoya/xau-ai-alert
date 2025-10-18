@@ -9961,8 +9961,6 @@ def home():
 
 @app.route('/run-harmonic-bot')
 def run_harmonic_bot():
-    message = create_enhanced_telegram_message(pattern_info, symbol, timeframe, price)
-    send_telegram(message)  # ส่งครั้งเดียว
     """Run Harmonic + Elliott Wave patterns - Send once per hour"""
     global last_harmonic_sent_hour, message_sent_this_hour
     
