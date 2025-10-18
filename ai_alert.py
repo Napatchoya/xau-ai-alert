@@ -7129,7 +7129,7 @@ def get_pattern_theory(pattern_name):
 # ============= ส่วนที่ 4: Enhanced Telegram Message Function =============
 
 def create_enhanced_telegram_message(pattern_info, symbol, timeframe, current_price):
-    """สร้างข้อความ Telegram แบบละเอียด"""
+    """สร้างข้อความ Telegram แบบละเอียด - Fixed to prevent duplicates"""
     try:
         pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
         confidence = pattern_info.get('confidence', 0)
@@ -7143,6 +7143,12 @@ def create_enhanced_telegram_message(pattern_info, symbol, timeframe, current_pr
         
         # สร้าง header ข้อความ
         confidence_emoji = "🟢" if confidence > 0.8 else "🟡" if confidence > 0.6 else "🔴"
+        
+        # สร้าง pattern-specific points info
+        points_info = create_pattern_points_info(pattern_info)
+        
+        # สร้าง trading strategy
+        strategy_info = create_trading_strategy(pattern_name, pattern_info)
         
         message = f"""
 🎯 PATTERN DETECTED 🎯
