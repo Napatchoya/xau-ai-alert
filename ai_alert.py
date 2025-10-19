@@ -3346,6 +3346,20 @@ EMA21: ${trading_signals['ema21']:,.2f} ({'Above' if trading_signals['current_pr
 • Main Direction: {dominant_bias}
 • Confidence Level: {highest_confidence*100:.1f}% (Highest)
 • Market Phase: {market_phase}
+
+💼 NEXT STEPS:
+1. Monitor price action for confirmation
+2. Watch for volume spikes on breakouts
+3. Set alerts at key support/resistance levels
+4. Prepare trading plan for next hour
+
+💡 คำแนะนำการใช้งาน:
+• ให้ความสำคัญกับ pattern ที่มี confidence สูงสุด
+• รอการยืนยันจากแท่งเทียนถัดไป
+• ใช้ Risk Management เข้มงวด
+• เปรียบเทียบสัญญาณจากหลาย patterns
+
+⚠️ หากมี patterns ขัดแย้งกัน ให้รอสัญญาณที่ชัดเจนกว่า"""
         
         send_telegram(summary_message)
         print(f"✅ Multiple patterns message sequence completed")
