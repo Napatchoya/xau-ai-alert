@@ -9999,23 +9999,23 @@ def run_harmonic_bot():
         message_sent_this_hour['harmonic'] = current_hour
         
         def send_harmonic_task():
-    try:
-        shared_df = get_shared_xau_data()
-        if shared_df is None:
-            return
+            try:
+                shared_df = get_shared_xau_data()
+                if shared_df is None:
+                    return
         
-        pattern_result, _ = detect_all_patterns_enhanced(shared_df, 'XAUUSD', '1H')
+                pattern_result, _ = detect_all_patterns_enhanced(shared_df, 'XAUUSD', '1H')
         
-        # Create message (will be either detailed or "not found")
-        telegram_msg = create_enhanced_telegram_message(
-            pattern_result, 'XAUUSD', '1H', shared_df['close'].iloc[-1]
-        )
+                # Create message (will be either detailed or "not found")
+                telegram_msg = create_enhanced_telegram_message(
+                    pattern_result, 'XAUUSD', '1H', shared_df['close'].iloc[-1]
+                )
         
-        # Always send the message (either pattern found or "not detected" notification)
-        send_telegram(telegram_msg)
+                # Always send the message (either pattern found or "not detected" notification)
+                send_telegram(telegram_msg)
         
-    except Exception as e:
-        print(f"❌ Error: {e}")
+            except Exception as e:
+                print(f"❌ Error: {e}")
 
 @app.route('/test-harmonic-chart')
 def test_harmonic_chart():
