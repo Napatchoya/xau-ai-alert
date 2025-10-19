@@ -9961,7 +9961,7 @@ def home():
 
 @app.route('/run-harmonic-bot')
 def run_harmonic_bot():
-    """Run Harmonic + Elliott Wave patterns - Send once per hour"""
+    """Run Harmonic + Elliott Wave patterns - Send once per hour - Fixed"""
     global last_harmonic_sent_hour, message_sent_this_hour
     
     try:
@@ -9975,53 +9975,51 @@ def run_harmonic_bot():
             message_sent_this_hour['harmonic'] = None
         
         # ตรวจสอบว่าส่งในชั่วโมงนี้แล้วหรือยัง
-        if message_sent_this_hour['harmonic'] != current_hour:
-            message_sent_this_hour['harmonic'] = current_hour
-            
-            def send_harmonic_task():
-                try:
-                    shared_df = get_shared_xau_data()
-                    if shared_df is None:
-                        error_msg = f"❌ Harmonic AI Error @ {current_time}\nCannot fetch data"
-                        send_telegram(error_msg)
-                        return
-                    
-                    # ใช้ฟังก์ชันตรวจจับแพทเทิร์นขั้นสูง
-                    pattern_result, telegram_msg = detect_all_patterns_enhanced(
-                        shared_df, 'XAUUSD', '1H'
-                    )
-                    
-                    # ส่ง Telegram
-                    send_telegram(telegram_msg)
-                    
-                    # สร้างและส่งกราฟ
-                    chart_result = analyze_and_send_telegram(
-                        shared_df, 'XAUUSD', '1H', send_telegram=True
-                    )
-                    
-                    print(f"✅ [{current_time}] Harmonic patterns sent to Telegram")
-                    
-                except Exception as e:
-                    print(f"❌ Harmonic send error: {e}")
-                    error_msg = f"❌ Harmonic AI Error\n{str(e)[:100]}"
+        if message_sent_this_hour['harmonic'] == current_hour:
+            # ส่งแล้ว - ไม่ส่งอีก
+            return jsonify({
+                "status": "✅ Keep Alive",
+                "message": f"Harmonic signal already sent in hour {current_hour}",
+                "next_send": f"{current_hour + 1}:00"
+            })
+        
+        # ส่งเครื่องหมายว่าส่งแล้ว
+        message_sent_this_hour['harmonic'] = current_hour
+        
+        def send_harmonic_task():
+            try:
+                shared_df = get_shared_xau_data()
+                if shared_df is None:
+                    error_msg = f"❌ Harmonic AI Error @ {current_time}\nCannot fetch data"
                     send_telegram(error_msg)
-            
-            Thread(target=send_harmonic_task, daemon=True).start()
-            
-            return jsonify({
-                "status": "✅ Harmonic AI - Signal Sent",
-                "mode": "TELEGRAM_SENT",
-                "time": current_time,
-                "patterns": "GARTLEY, BUTTERFLY, BAT, CRAB, ELLIOTT_WAVE",
-                "telegram_sent": True
-            })
-        else:
-            return jsonify({
-                "status": "✅ Harmonic AI - Keep Alive",
-                "mode": "KEEP_ALIVE",
-                "time": current_time,
-                "note": "Harmonic signal already sent this hour"
-            })
+                    return
+                
+                # ตรวจจับแพทเทิร์น
+                pattern_result, _ = detect_all_patterns_enhanced(
+                    shared_df, 'XAUUSD', '1H'
+                )
+                
+                # สร้างข้อความเดียวครั้ง
+                telegram_msg = create_enhanced_telegram_message(
+                    pattern_result, 'XAUUSD', '1H', shared_df['close'].iloc[-1]
+                )
+                
+                # ส่ง Telegram เพียงครั้งเดียว
+                send_telegram(telegram_msg)
+                
+                print(f"✅ [{current_time}] Harmonic signal sent")
+                
+            except Exception as e:
+                print(f"❌ Error: {e}")
+                send_telegram(f"❌ Harmonic AI Error\n{str(e)[:100]}")
+        
+        Thread(target=send_harmonic_task, daemon=True).start()
+        
+        return jsonify({
+            "status": "✅ Signal Sent",
+            "time": current_time,
+            "message": "Harmonic pattern analysis sent to Telegram"
+        })
             
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
