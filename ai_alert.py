@@ -3260,56 +3260,57 @@ Current Price: ${current_data['close']:,.2f}
                     
                     # หน่วงเวลาระหว่างการส่งกราฟ
                     time.sleep(4)
-            if priority_count > 0:
-                priority_alert = f"""🌟 PRIORITY PATTERN ALERT 🌟
-
-            ⚠️ {priority_count} Harmonic/Elliott Wave pattern{'s' if priority_count > 1 else ''} detected!
-
-            These patterns are:
-            • Based on Fibonacci ratios (Harmonic)
-            • Based on wave structure (Elliott)
-            • High probability reversal/continuation signals
-            • Detected regardless of confidence threshold
-
-            🎯 Priority Patterns Detected:
-            """
-    
-                for i, pattern in enumerate([p for p in top_5_patterns if p.get('priority', False)], 1):
-                    priority_alert += f"{i}. {pattern['pattern_name']} - {pattern['confidence']*100:.1f}%\n"
-        
-                    # แสดงข้อมูลเพิ่มเติมสำหรับ Harmonic
-                    if pattern['pattern_name'] in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
-                        priority_alert += f"   📐 Fibonacci structure: XABCD\n"
-                        if 'points' in pattern and pattern['points']:
-                            d_point = pattern['points'].get('D')
-                            if d_point:
-                                priority_alert += f"   🎯 Entry zone at D: ${d_point[1]:.2f}\n"
-        
-                    # แสดงข้อมูลเพิ่มเติมสำหรับ Elliott
-                    elif pattern['pattern_name'] in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
-                        wave_type = "5-Wave Impulse" if pattern['pattern_name'] == 'ELLIOTT_WAVE_5' else "3-Wave Corrective"
-                        priority_alert += f"   🌊 Wave structure: {wave_type}\n"
-    
-                priority_alert += f"""
-            💡 Action Required:
-            ✅ Review all {priority_count} priority pattern charts above
-            ✅ Look for confluence with other patterns
-            ✅ Wait for price action confirmation
-            ✅ Set appropriate stop losses
-
-            ⚠️ These patterns are given priority because they use advanced mathematical structures (Fibonacci, wave theory) that historically have higher success rates when properly identified."""
-    
-                send_telegram(priority_alert)
-                time.sleep(2)
-                else:
-                    print(f"⚠️ Chart {idx}/5 creation failed: {pattern_name}")
-                    
+            
             except Exception as e:
                 print(f"❌ Error creating chart {idx}/5 for {pattern.get('pattern_name')}: {e}")
                 continue
+        # ========================================
+        # 3) ข้อความสรุปท้าย - Priority Alert
+        # ========================================                
+        if priority_count > 0:
+            priority_alert = f"""🌟 PRIORITY PATTERN ALERT 🌟
+
+⚠️ {priority_count} Harmonic/Elliott Wave pattern{'s' if priority_count > 1 else ''} detected!
+
+These patterns are:
+• Based on Fibonacci ratios (Harmonic)
+• Based on wave structure (Elliott)
+• High probability reversal/continuation signals
+• Detected regardless of confidence threshold
+
+🎯 Priority Patterns Detected:
+"""
+    
+            for i, pattern in enumerate([p for p in top_5_patterns if p.get('priority', False)], 1):
+                priority_alert += f"{i}. {pattern['pattern_name']} - {pattern['confidence']*100:.1f}%\n"
+        
+                # แสดงข้อมูลเพิ่มเติมสำหรับ Harmonic
+                if pattern['pattern_name'] in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
+                    priority_alert += f"   📐 Fibonacci structure: XABCD\n"
+                    if 'points' in pattern and pattern['points']:
+                        d_point = pattern['points'].get('D')
+                        if d_point:
+                            priority_alert += f"   🎯 Entry zone at D: ${d_point[1]:.2f}\n"
+        
+                # แสดงข้อมูลเพิ่มเติมสำหรับ Elliott
+                elif pattern['pattern_name'] in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
+                    wave_type = "5-Wave Impulse" if pattern['pattern_name'] == 'ELLIOTT_WAVE_5' else "3-Wave Corrective"
+                    priority_alert += f"   🌊 Wave structure: {wave_type}\n"
+    
+            priority_alert += f"""
+💡 Action Required:
+✅ Review all {priority_count} priority pattern charts above
+✅ Look for confluence with other patterns
+✅ Wait for price action confirmation
+✅ Set appropriate stop losses
+
+⚠️ These patterns are given priority because they use advanced mathematical structures (Fibonacci, wave theory) that historically have higher success rates when properly identified."""
+    
+            send_telegram(priority_alert)
+            time.sleep(2)
         
         # ========================================
-        # 3) ข้อความสรุปท้าย
+        # 4) ข้อความสรุปท้าย
         # ========================================
         
         # คำนวณ bias
