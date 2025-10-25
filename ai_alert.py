@@ -3058,7 +3058,7 @@ Waiting for clear pattern formation..."""
         continuation_patterns = []
         bearish_patterns = []
         bullish_patterns = []
-        neutral_pattern = []
+        neutral_patterns = []
         harmonic_patterns = []
         elliott_patterns = []
         
@@ -3111,7 +3111,7 @@ Waiting for clear pattern formation..."""
             if pattern_name in bullish_list:
                 bullish_patterns.append(pattern)
             if pattern_name in neutral_list:
-                neutral_patterns.append(pattern)   
+                neutral_patterns.append(pattern)
         
         message_1 = f"""🔍 TOP 5 PATTERNS DETECTED - MULTI-CHART ANALYSIS
 
@@ -3264,9 +3264,10 @@ Current Price: ${current_data['close']:,.2f}
             except Exception as e:
                 print(f"❌ Error creating chart {idx}/5 for {pattern.get('pattern_name')}: {e}")
                 continue
+        
         # ========================================
         # 3) ข้อความสรุปท้าย - Priority Alert
-        # ========================================                
+        # ========================================
         if priority_count > 0:
             priority_alert = f"""🌟 PRIORITY PATTERN ALERT 🌟
 
@@ -3280,10 +3281,10 @@ These patterns are:
 
 🎯 Priority Patterns Detected:
 """
-    
-            for i, pattern in enumerate([p for p in top_5_patterns if p.get('priority', False)], 1):
+            
+            for i, pattern in enumerate([p for p in top_5_patterns if p['pattern_name'] in PRIORITY_PATTERNS], 1):
                 priority_alert += f"{i}. {pattern['pattern_name']} - {pattern['confidence']*100:.1f}%\n"
-        
+                
                 # แสดงข้อมูลเพิ่มเติมสำหรับ Harmonic
                 if pattern['pattern_name'] in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
                     priority_alert += f"   📐 Fibonacci structure: XABCD\n"
@@ -3291,12 +3292,12 @@ These patterns are:
                         d_point = pattern['points'].get('D')
                         if d_point:
                             priority_alert += f"   🎯 Entry zone at D: ${d_point[1]:.2f}\n"
-        
+                
                 # แสดงข้อมูลเพิ่มเติมสำหรับ Elliott
                 elif pattern['pattern_name'] in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
                     wave_type = "5-Wave Impulse" if pattern['pattern_name'] == 'ELLIOTT_WAVE_5' else "3-Wave Corrective"
                     priority_alert += f"   🌊 Wave structure: {wave_type}\n"
-    
+            
             priority_alert += f"""
 💡 Action Required:
 ✅ Review all {priority_count} priority pattern charts above
@@ -3305,7 +3306,7 @@ These patterns are:
 ✅ Set appropriate stop losses
 
 ⚠️ These patterns are given priority because they use advanced mathematical structures (Fibonacci, wave theory) that historically have higher success rates when properly identified."""
-    
+            
             send_telegram(priority_alert)
             time.sleep(2)
         
