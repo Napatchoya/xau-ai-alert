@@ -4988,6 +4988,82 @@ class AdvancedPatternDetector:
             34: "TWEEZER_BOTTOM"
         }
 
+    # ========================================
+    # เพิ่มเมธอดที่หายไป
+    # ========================================
+    
+    def detect_all_candlestick_patterns(self, df):
+        """Detect ALL candlestick patterns"""
+        try:
+            patterns_found = []
+            recent_data = df.tail(5)
+            if len(recent_data) < 3:
+                return patterns_found
+        
+            # Single candlestick patterns
+            last_candle = recent_data.iloc[-1]
+            single_patterns = self.detect_all_single_candlestick(last_candle)
+            patterns_found.extend(single_patterns)
+        
+            # Hanging Man
+            hanging_man = self.check_hanging_man(last_candle)
+            patterns_found.extend(hanging_man)
+        
+            # Two candlestick patterns
+            if len(recent_data) >= 2:
+                two_patterns = self.detect_all_two_candlestick(recent_data.tail(2))
+                patterns_found.extend(two_patterns)
+            
+                # Tweezer patterns
+                tweezer_patterns = self.check_tweezer_patterns(recent_data.tail(2))
+                patterns_found.extend(tweezer_patterns)
+        
+            # Three candlestick patterns
+            if len(recent_data) >= 3:
+                three_patterns = self.detect_all_three_candlestick(recent_data.tail(3))
+                patterns_found.extend(three_patterns)
+        
+            return patterns_found
+        
+        except Exception as e:
+            print(f"All candlestick patterns error: {e}")
+            return []
+
+    def detect_all_chart_patterns(self, df):
+        """Detect ALL chart patterns"""
+        try:
+            patterns_found = []
+            
+            # ใช้เมธอดที่มีอยู่แล้ว
+            patterns_found.extend(self.check_head_shoulders(df))
+            patterns_found.extend(self.check_double_top(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_double_bottom(df['low'].values[-30:], df['close'].values[-30:]))
+            patterns_found.extend(self.check_ascending_triangle(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_descending_triangle(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_bull_flag(df['close'].values[-30:], df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_bear_flag(df['close'].values[-30:], df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_symmetrical_triangle(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_wedge_patterns(df['high'].values[-30:], df['low'].values[-30:], df['close'].values[-30:]))
+            patterns_found.extend(self.check_cup_and_handle(df['close'].values[-30:], df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_inverse_head_shoulders(df['low'].values[-30:], df['close'].values[-30:]))
+            patterns_found.extend(self.check_rectangle(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_diamond_pattern(df['high'].values[-30:], df['low'].values[-30:]))
+            patterns_found.extend(self.check_pennant_pattern(df['high'].values[-30:], df['low'].values[-30:], df['close'].values[-30:]))
+        
+            # กรอง patterns ที่ซ้ำกัน
+            unique_patterns = []
+            seen_patterns = set()
+            for pattern in patterns_found:
+                if pattern['pattern_name'] not in seen_patterns:
+                    unique_patterns.append(pattern)
+                    seen_patterns.add(pattern['pattern_name'])
+        
+            return unique_patterns
+        
+        except Exception as e:
+            print(f"All chart patterns error: {e}")
+            return []
+
     def predict_signals(self, df):
         """Predict trading signals based on patterns and technical indicators"""
         try:
@@ -5171,6 +5247,97 @@ class AdvancedPatternDetector:
                 'method': 'ERROR'
             }]
 
+        def detect_all_patterns_with_priority(self, df):
+        """
+        Detect ALL patterns with priority for Harmonic & Elliott Wave
+        ไม่สนใจ confidence สำหรับ priority patterns
+        """
+        try:
+            if len(df) < 20:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'INSUFFICIENT_DATA'
+                }]
+            
+            all_patterns = []
+            
+            # ========================================
+            # 1. Priority Patterns: Harmonic
+            # ========================================
+            harmonic_detector = HarmonicPatternDetector()
+            harmonic_result = harmonic_detector.detect_harmonic_patterns(df)
+            
+            if harmonic_result['pattern_name'] != 'NO_PATTERN':
+                harmonic_result['priority'] = True
+                all_patterns.append(harmonic_result)
+                print(f"✅ Priority Harmonic: {harmonic_result['pattern_name']} ({harmonic_result['confidence']:.1%})")
+            
+            # ========================================
+            # 2. Priority Patterns: Elliott Wave
+            # ========================================
+            elliott_detector = ElliottWaveDetector()
+            elliott_result = elliott_detector.detect_elliott_waves(df)
+            
+            if elliott_result['pattern_name'] != 'NO_PATTERN':
+                elliott_result['priority'] = True
+                all_patterns.append(elliott_result)
+                print(f"✅ Priority Elliott: {elliott_result['pattern_name']} ({elliott_result['confidence']:.1%})")
+            
+            # ========================================
+            # 3. Regular Patterns: Candlestick + Chart
+            # ========================================
+            candlestick_patterns = self.detect_all_candlestick_patterns(df)
+            chart_patterns = self.detect_all_chart_patterns(df)
+            
+            regular_patterns = candlestick_patterns + chart_patterns
+            
+            # กรองเฉพาะ patterns ที่มีคุณภาพ
+            quality_regular = [
+                p for p in regular_patterns 
+                if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.60
+            ]
+            
+            # เพิ่ม flag ว่าไม่ใช่ priority
+            for pattern in quality_regular:
+                pattern['priority'] = False
+            
+            all_patterns.extend(quality_regular)
+            
+            # ========================================
+            # 4. เรียงลำดับ
+            # ========================================
+            if not all_patterns:
+                return [{
+                    'pattern_id': 0,
+                    'pattern_name': 'NO_PATTERN',
+                    'confidence': 0.50,
+                    'method': 'NO_PATTERNS_FOUND'
+                }]
+            
+            # เรียง: priority patterns ก่อน, แล้วเรียงตาม confidence
+            all_patterns.sort(key=lambda x: (not x.get('priority', False), -x['confidence']))
+            
+            # แสดงผลลัพธ์
+            print(f"\n📊 Pattern Detection Summary:")
+            print(f"   Priority patterns: {sum(1 for p in all_patterns if p.get('priority', False))}")
+            print(f"   Regular patterns: {sum(1 for p in all_patterns if not p.get('priority', False))}")
+            print(f"   Total patterns: {len(all_patterns)}")
+            
+            return all_patterns[:10]
+            
+        except Exception as e:
+            print(f"❌ Multiple pattern detection error: {e}")
+            import traceback
+            traceback.print_exc()
+            return [{
+                'pattern_id': 0,
+                'pattern_name': 'NO_PATTERN',
+                'confidence': 0.30,
+                'method': 'ERROR'
+            }]
+    
     def detect_all_candlestick_patterns(self, df):
         """Detect ALL candlestick patterns - FIXED VERSION"""
         try:
