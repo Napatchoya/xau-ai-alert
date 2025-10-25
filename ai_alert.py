@@ -6233,10 +6233,7 @@ class AdvancedPatternDetector:
             # ========================================
             # 3. Regular Patterns: Candlestick + Chart (กรอง confidence > 60%)
             # ========================================
-            candlestick_patterns = self.detect_all_candlestick_patterns(df)
-            chart_patterns = self.detect_all_chart_patterns(df)
-            
-            regular_patterns = candlestick_patterns + chart_patterns
+            regular_patterns = self.detect_all_patterns(df)  # ใช้เมธอดที่มีอยู่แล้ว
             
             # กรองเฉพาะ patterns ที่มีคุณภาพ
             quality_regular = [
