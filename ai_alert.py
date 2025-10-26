@@ -9712,16 +9712,24 @@ def run_pattern_bot():
         
         def send_pattern_task():
             try:
+                print(f"\n{'='*60}")
+                print(f"🚀 PATTERN TASK STARTED @ {current_time}")
+                print(f"{'='*60}")
+                
                 shared_df = get_shared_xau_data()
                 if shared_df is None:
                     error_msg = f"❌ Pattern AI Data Error @ {current_time}\nCannot fetch market data"
                     send_telegram(error_msg)
                     return
                     
+                print(f"✅ Data fetched: {len(shared_df)} rows")
+                    
                 if len(shared_df) < 20:
                     error_msg = f"❌ Pattern AI Data Error @ {current_time}\nInsufficient data for analysis"
                     send_telegram(error_msg)
                     return
+                    
+                print(f"✅ Data validation passed")
                 
                 # 🔥 ใช้ฟังก์ชันใหม่ที่รองรับ priority logic
                 detector = AdvancedPatternDetector()
@@ -9747,28 +9755,30 @@ Current Price: ${current_price:,.2f}
 • Classic Chart Patterns
 
 Waiting for clear pattern formation..."""
-                    send_telegram(no_pattern_msg)
-                    return
-                
-                # นับ priority patterns
-                priority_count = sum(1 for p in all_patterns if p.get('priority', False))
-                
-                print(f"📊 [{current_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
-                
-                # ส่งแบบ multiple patterns (สร้าง top 5 charts)
-                send_status = send_multiple_patterns_message(all_patterns, shared_df)
 
-                # 📊 Log after sending
-                log_pattern_detection(all_patterns, telegram_sent=(send_status == 200))
+            print(f"📤 Sending 'no pattern' message...")
+            telegram_status = send_telegram(no_pattern_msg)
+            print(f"✅ Telegram status: {telegram_status}")
+            return
+                
+            # นับ priority patterns
+            priority_count = sum(1 for p in all_patterns if p.get('priority', False))
+                
+            print(f"📊 [{current_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
+            print(f"📊 Patterns: {[p['pattern_name'] for p in all_patterns[:5]]}") 
+            
+            # ส่งแบบ multiple patterns (สร้าง top 5 charts)
+            print(f"📤 Sending multiple patterns message...")
+            send_status = send_multiple_patterns_message(all_patterns, shared_df)
+            print(f"✅ Send status: {send_status}")
+
+            # 📊 Log after sending
+            log_pattern_detection(all_patterns, telegram_sent=(send_status == 200))
         
-                print(f"✅ [{current_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
+            print(f"✅ [{current_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
+            print(f"{'='*60}\n")
                     
-            except Exception as e:
-                print(f"❌ [{current_time}] Pattern AI send error: {e}")
-                import traceback
-                traceback.print_exc()
-                error_msg = f"❌ Pattern AI Error @ {current_time}\nError: {str(e)[:100]}"
-                send_telegram(error_msg)
+        
         
         # ✅ เริ่ม thread
         Thread(target=send_pattern_task, daemon=True).start()
