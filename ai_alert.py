@@ -9692,9 +9692,8 @@ def run_pattern_bot():
         current_hour = now_th.hour
         current_time = now_th.strftime("%Y-%m-%d %H:%M")
         
-        # ✅ แก้ไข: เช็คว่าส่งในชั่วโมงนี้แล้วหรือยัง
+        # ✅ เช็คว่าส่งในชั่วโมงนี้แล้วหรือยัง
         if message_sent_this_hour.get('pattern') == current_hour:
-            # ส่งไปแล้วในชั่วโมงนี้
             return jsonify({
                 "status": "✅ Pattern AI - Keep Alive",
                 "mode": "KEEP_ALIVE", 
@@ -9711,59 +9710,63 @@ def run_pattern_bot():
         last_pattern_sent_hour = current_hour
         
         def send_pattern_task():
+            """Background task for pattern detection and sending"""
             try:
+                # 🔧 สร้าง timestamp ใหม่ใน thread
+                task_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+                
                 print(f"\n{'='*60}")
-                print(f"🚀 PATTERN TASK STARTED @ {current_time}")
+                print(f"🚀 PATTERN TASK STARTED @ {task_time}")
                 print(f"{'='*60}")
                 
+                # Fetch data
                 shared_df = get_shared_xau_data()
                 if shared_df is None:
-                    error_msg = f"❌ Pattern AI Data Error @ {current_time}\nCannot fetch market data"
+                    error_msg = f"❌ Pattern AI Data Error @ {task_time}\nCannot fetch market data"
                     print(f"❌ Data fetch failed")
                     send_telegram(error_msg)
                     return
-                    
+                
                 print(f"✅ Data fetched: {len(shared_df)} rows")
-                    
+                
                 if len(shared_df) < 20:
-                    error_msg = f"❌ Pattern AI Data Error @ {current_time}\nInsufficient data for analysis"
+                    error_msg = f"❌ Pattern AI Data Error @ {task_time}\nInsufficient data for analysis"
                     print(f"❌ Insufficient data: {len(shared_df)} rows")
                     send_telegram(error_msg)
                     return
-                    
+                
                 print(f"✅ Data validation passed")
                 
-                # 🔥 ใช้ฟังก์ชันใหม่ที่รองรับ priority logic
+                # Pattern detection
                 detector = AdvancedPatternDetector()
                 print(f"🔍 Starting pattern detection...")
                 
                 all_patterns = detector.detect_all_patterns_with_priority(shared_df.tail(50))
                 print(f"✅ Pattern detection completed: {len(all_patterns)} patterns found")
-        
                 
                 # กรอง NO_PATTERN
                 all_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN']
                 print(f"✅ After filtering: {len(all_patterns)} valid patterns")
-        
                 
                 # 📊 Log pattern detection
                 log_pattern_detection(all_patterns, telegram_sent=False)
                 
+                # Handle no patterns case
                 if not all_patterns:
                     current_price = shared_df['close'].iloc[-1]
                     no_pattern_msg = f"""📊 Pattern AI System
-        ⏰ {current_time}
+⏰ {task_time}
 
-        ❌ No patterns detected this hour
-        Current Price: ${current_price:,.2f}
+❌ No patterns detected this hour
+Current Price: ${current_price:,.2f}
 
-        🔍 Monitoring:
-        • Harmonic Patterns (GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD)
-        • Elliott Wave (5-Wave, 3-Wave)
-        • Classic Chart Patterns
+🔍 Monitoring:
+• Harmonic Patterns (GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD)
+• Elliott Wave (5-Wave, 3-Wave)
+• Classic Chart Patterns
 
-        Waiting for clear pattern formation..."""
-
+Waiting for clear pattern formation..."""
+                    
                     print(f"📤 Sending 'no pattern' message...")
                     telegram_status = send_telegram(no_pattern_msg)
                     print(f"✅ Telegram status: {telegram_status}")
@@ -9772,30 +9775,30 @@ def run_pattern_bot():
                 # นับ priority patterns
                 priority_count = sum(1 for p in all_patterns if p.get('priority', False))
                 
-                print(f"📊 [{current_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
+                print(f"📊 [{task_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
                 print(f"📊 Patterns: {[p['pattern_name'] for p in all_patterns[:5]]}") 
-            
+                
                 # ส่งแบบ multiple patterns (สร้าง top 5 charts)
                 print(f"📤 Sending multiple patterns message...")
                 send_status = send_multiple_patterns_message(all_patterns, shared_df)
                 print(f"✅ Send status: {send_status}")
-
+                
                 # 📊 Log after sending
                 log_pattern_detection(all_patterns, telegram_sent=(send_status == 200))
-        
-                print(f"✅ [{current_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
+                
+                print(f"✅ [{task_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
                 print(f"{'='*60}\n")
+                
             except Exception as e:
+                task_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
                 print(f"\n{'='*60}")
-                print(f"❌ [{current_time}] Pattern AI send error: {e}")
+                print(f"❌ [{task_time}] Pattern AI send error: {e}")
                 print(f"{'='*60}")
                 import traceback
                 traceback.print_exc()
-                error_msg = f"❌ Pattern AI Error @ {current_time}\nError: {str(e)[:100]}"
+                error_msg = f"❌ Pattern AI Error @ {task_time}\nError: {str(e)[:100]}"
                 send_telegram(error_msg)
                 print(f"{'='*60}\n")
-                    
-        
         
         # ✅ เริ่ม thread
         Thread(target=send_pattern_task, daemon=True).start()
@@ -9811,7 +9814,7 @@ def run_pattern_bot():
             "charts_count": "Up to 5 charts",
             "next_signal_time": f"{(current_hour + 1) % 24:02d}:00"
         })
-            
+        
     except Exception as e:
         print(f"❌ Pattern AI Error: {e}")
         import traceback
