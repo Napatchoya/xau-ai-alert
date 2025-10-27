@@ -9823,6 +9823,50 @@ Waiting for clear pattern formation..."""
             "status": "error", 
             "message": str(e)
         }), 500
+
+@app.route('/test-pattern-bot-direct')
+def test_pattern_bot_direct():
+    """Test Pattern Bot โดยตรงโดยไม่สนใจ hourly limit"""
+    try:
+        current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
+        
+        shared_df = get_shared_xau_data()
+        if shared_df is None:
+            return jsonify({
+                "status": "error",
+                "message": "Cannot fetch data"
+            }), 500
+        
+        detector = AdvancedPatternDetector()
+        all_patterns = detector.detect_all_patterns_with_priority(shared_df.tail(50))
+        all_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN']
+        
+        if not all_patterns:
+            no_pattern_msg = f"📊 Test @ {current_time}\n\n❌ No patterns detected"
+            telegram_status = send_telegram(no_pattern_msg)
+            
+            return jsonify({
+                "status": "success",
+                "message": "No patterns found, sent notification",
+                "telegram_status": telegram_status
+            })
+        
+        # ส่งแบบ multiple patterns
+        send_status = send_multiple_patterns_message(all_patterns, shared_df)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Sent {min(len(all_patterns), 5)} charts",
+            "patterns_found": len(all_patterns),
+            "telegram_status": send_status,
+            "patterns": [p['pattern_name'] for p in all_patterns[:5]]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
     
 @app.route('/test-pattern-chart')
 def test_pattern_chart():
