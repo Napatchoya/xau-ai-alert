@@ -9898,7 +9898,7 @@ Waiting for clear pattern formation..."""
 
 @app.route('/test-pattern-bot-direct')
 def test_pattern_bot_direct():
-    """Test Pattern Bot โดยตรงโดยไม่สนใจ hourly limit"""
+    """Test Pattern Bot โดยตรงโดยไม่สนใจ hourly limit - IMPROVED"""
     try:
         current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
         
@@ -9910,17 +9910,63 @@ def test_pattern_bot_direct():
             }), 500
         
         detector = AdvancedPatternDetector()
-        all_patterns = detector.detect_all_patterns_with_priority(shared_df.tail(50))
-        all_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN']
+        
+        # เปลี่ยนเป็นเรียกแยกเพื่อควบคุม threshold ได้
+        candlestick_patterns = detector.detect_all_candlestick_patterns(shared_df)
+        chart_patterns = detector.detect_all_chart_patterns(shared_df)
+        
+        harmonic_detector = HarmonicPatternDetector()
+        harmonic_result = harmonic_detector.detect_harmonic_patterns(shared_df)
+        
+        elliott_detector = ElliottWaveDetector()
+        elliott_result = elliott_detector.detect_elliott_waves(shared_df)
+        
+        # รวม patterns (ลด threshold เหลือ 0.50)
+        all_patterns = []
+        
+        if harmonic_result['pattern_name'] != 'NO_PATTERN':
+            harmonic_result['priority'] = True
+            all_patterns.append(harmonic_result)
+            
+        if elliott_result['pattern_name'] != 'NO_PATTERN':
+            elliott_result['priority'] = True
+            all_patterns.append(elliott_result)
+        
+        # เพิ่ม Candlestick patterns (confidence > 0.50)
+        all_patterns.extend([
+            p for p in candlestick_patterns 
+            if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.50
+        ])
+        
+        # เพิ่ม Chart patterns (confidence > 0.50)
+        all_patterns.extend([
+            p for p in chart_patterns 
+            if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.50
+        ])
+        
+        # เรียงตาม confidence
+        all_patterns.sort(key=lambda x: (
+            x.get('priority', False), 
+            x['confidence']
+        ), reverse=True)
         
         if not all_patterns:
-            no_pattern_msg = f"📊 Test @ {current_time}\n\n❌ No patterns detected"
+            no_pattern_msg = f"""📊 Test @ {current_time}
+
+❌ No patterns detected
+(Checked: Harmonic, Elliott, Candlestick, Chart patterns)
+
+Threshold: confidence > 50%"""
             telegram_status = send_telegram(no_pattern_msg)
             
             return jsonify({
                 "status": "success",
-                "message": "No patterns found, sent notification",
-                "telegram_status": telegram_status
+                "message": "No patterns found (even with low threshold)",
+                "telegram_status": telegram_status,
+                "debug": {
+                    "candlestick_checked": len(candlestick_patterns),
+                    "chart_checked": len(chart_patterns)
+                }
             })
         
         # ส่งแบบ multiple patterns
@@ -9931,7 +9977,19 @@ def test_pattern_bot_direct():
             "message": f"Sent {min(len(all_patterns), 5)} charts",
             "patterns_found": len(all_patterns),
             "telegram_status": send_status,
-            "patterns": [p['pattern_name'] for p in all_patterns[:5]]
+            "patterns": [
+                {
+                    "name": p['pattern_name'],
+                    "confidence": f"{p['confidence']:.1%}",
+                    "priority": p.get('priority', False)
+                }
+                for p in all_patterns[:5]
+            ],
+            "breakdown": {
+                "priority": sum(1 for p in all_patterns if p.get('priority', False)),
+                "candlestick": sum(1 for p in all_patterns if p.get('method') in ['SINGLE_CANDLESTICK', 'TWO_CANDLESTICK', 'THREE_CANDLESTICK']),
+                "chart": sum(1 for p in all_patterns if p.get('method') in ['CHART_PATTERN', 'RULE_BASED'])
+            }
         })
         
     except Exception as e:
