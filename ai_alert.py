@@ -9719,6 +9719,7 @@ def run_pattern_bot():
                 shared_df = get_shared_xau_data()
                 if shared_df is None:
                     error_msg = f"❌ Pattern AI Data Error @ {current_time}\nCannot fetch market data"
+                    print(f"❌ Data fetch failed")
                     send_telegram(error_msg)
                     return
                     
@@ -9726,6 +9727,7 @@ def run_pattern_bot():
                     
                 if len(shared_df) < 20:
                     error_msg = f"❌ Pattern AI Data Error @ {current_time}\nInsufficient data for analysis"
+                    print(f"❌ Insufficient data: {len(shared_df)} rows")
                     send_telegram(error_msg)
                     return
                     
@@ -9733,10 +9735,16 @@ def run_pattern_bot():
                 
                 # 🔥 ใช้ฟังก์ชันใหม่ที่รองรับ priority logic
                 detector = AdvancedPatternDetector()
+                print(f"🔍 Starting pattern detection...")
+                
                 all_patterns = detector.detect_all_patterns_with_priority(shared_df.tail(50))
+                print(f"✅ Pattern detection completed: {len(all_patterns)} patterns found")
+        
                 
                 # กรอง NO_PATTERN
                 all_patterns = [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN']
+                print(f"✅ After filtering: {len(all_patterns)} valid patterns")
+        
                 
                 # 📊 Log pattern detection
                 log_pattern_detection(all_patterns, telegram_sent=False)
@@ -9744,39 +9752,48 @@ def run_pattern_bot():
                 if not all_patterns:
                     current_price = shared_df['close'].iloc[-1]
                     no_pattern_msg = f"""📊 Pattern AI System
-⏰ {current_time}
+        ⏰ {current_time}
 
-❌ No patterns detected this hour
-Current Price: ${current_price:,.2f}
+        ❌ No patterns detected this hour
+        Current Price: ${current_price:,.2f}
 
-🔍 Monitoring:
-• Harmonic Patterns (GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD)
-• Elliott Wave (5-Wave, 3-Wave)
-• Classic Chart Patterns
+        🔍 Monitoring:
+        • Harmonic Patterns (GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD)
+        • Elliott Wave (5-Wave, 3-Wave)
+        • Classic Chart Patterns
 
-Waiting for clear pattern formation..."""
+        Waiting for clear pattern formation..."""
 
-            print(f"📤 Sending 'no pattern' message...")
-            telegram_status = send_telegram(no_pattern_msg)
-            print(f"✅ Telegram status: {telegram_status}")
-            return
+                    print(f"📤 Sending 'no pattern' message...")
+                    telegram_status = send_telegram(no_pattern_msg)
+                    print(f"✅ Telegram status: {telegram_status}")
+                    return
                 
-            # นับ priority patterns
-            priority_count = sum(1 for p in all_patterns if p.get('priority', False))
+                # นับ priority patterns
+                priority_count = sum(1 for p in all_patterns if p.get('priority', False))
                 
-            print(f"📊 [{current_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
-            print(f"📊 Patterns: {[p['pattern_name'] for p in all_patterns[:5]]}") 
+                print(f"📊 [{current_time}] Patterns found: {len(all_patterns)} total, {priority_count} priority")
+                print(f"📊 Patterns: {[p['pattern_name'] for p in all_patterns[:5]]}") 
             
-            # ส่งแบบ multiple patterns (สร้าง top 5 charts)
-            print(f"📤 Sending multiple patterns message...")
-            send_status = send_multiple_patterns_message(all_patterns, shared_df)
-            print(f"✅ Send status: {send_status}")
+                # ส่งแบบ multiple patterns (สร้าง top 5 charts)
+                print(f"📤 Sending multiple patterns message...")
+                send_status = send_multiple_patterns_message(all_patterns, shared_df)
+                print(f"✅ Send status: {send_status}")
 
-            # 📊 Log after sending
-            log_pattern_detection(all_patterns, telegram_sent=(send_status == 200))
+                # 📊 Log after sending
+                log_pattern_detection(all_patterns, telegram_sent=(send_status == 200))
         
-            print(f"✅ [{current_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
-            print(f"{'='*60}\n")
+                print(f"✅ [{current_time}] Pattern analysis completed: {min(len(all_patterns), 5)} charts sent")
+                print(f"{'='*60}\n")
+            except Exception as e:
+                print(f"\n{'='*60}")
+                print(f"❌ [{current_time}] Pattern AI send error: {e}")
+                print(f"{'='*60}")
+                import traceback
+                traceback.print_exc()
+                error_msg = f"❌ Pattern AI Error @ {current_time}\nError: {str(e)[:100]}"
+                send_telegram(error_msg)
+                print(f"{'='*60}\n")
                     
         
         
