@@ -9964,7 +9964,7 @@ Waiting for clear pattern formation..."""
 
 @app.route('/test-pattern-bot-direct')
 def test_pattern_bot_direct():
-    """Test Pattern Bot โดยตรงโดยไม่สนใจ hourly limit - IMPROVED"""
+    """Test Pattern Bot โดยตรงโดยไม่สนใจ hourly limit - FIXED"""
     try:
         current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M")
         
@@ -9977,91 +9977,109 @@ def test_pattern_bot_direct():
         
         detector = AdvancedPatternDetector()
         
-        # เปลี่ยนเป็นเรียกแยกเพื่อควบคุม threshold ได้
-        candlestick_patterns = detector.detect_all_candlestick_patterns(shared_df)
-        chart_patterns = detector.detect_all_chart_patterns(shared_df)
+        # ใช้ method ที่มีอยู่แล้ว - ไม่กรอง confidence สูง
+        all_patterns = detector.detect_all_patterns(shared_df.tail(50))
         
+        # Harmonic
         harmonic_detector = HarmonicPatternDetector()
         harmonic_result = harmonic_detector.detect_harmonic_patterns(shared_df)
         
+        # Elliott
         elliott_detector = ElliottWaveDetector()
         elliott_result = elliott_detector.detect_elliott_waves(shared_df)
         
-        # รวม patterns (ลด threshold เหลือ 0.50)
-        all_patterns = []
+        # รวม patterns และกรองเฉพาะที่มีคุณภาพ (ลด threshold เหลือ 0.50)
+        combined_patterns = []
         
+        # Priority patterns (ไม่สนใจ confidence)
         if harmonic_result['pattern_name'] != 'NO_PATTERN':
             harmonic_result['priority'] = True
-            all_patterns.append(harmonic_result)
+            combined_patterns.append(harmonic_result)
             
         if elliott_result['pattern_name'] != 'NO_PATTERN':
             elliott_result['priority'] = True
-            all_patterns.append(elliott_result)
+            combined_patterns.append(elliott_result)
         
-        # เพิ่ม Candlestick patterns (confidence > 0.50)
-        all_patterns.extend([
-            p for p in candlestick_patterns 
-            if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.50
-        ])
+        # Regular patterns (confidence >= 0.50)
+        for p in all_patterns:
+            if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] >= 0.50:
+                p['priority'] = False
+                combined_patterns.append(p)
         
-        # เพิ่ม Chart patterns (confidence > 0.50)
-        all_patterns.extend([
-            p for p in chart_patterns 
-            if p['pattern_name'] != 'NO_PATTERN' and p['confidence'] > 0.50
-        ])
+        # เรียงตาม priority แล้วตาม confidence
+        combined_patterns.sort(
+            key=lambda x: (not x.get('priority', False), -x['confidence'])
+        )
         
-        # เรียงตาม confidence
-        all_patterns.sort(key=lambda x: (
-            x.get('priority', False), 
-            x['confidence']
-        ), reverse=True)
-        
-        if not all_patterns:
+        if not combined_patterns:
             no_pattern_msg = f"""📊 Test @ {current_time}
 
-❌ No patterns detected
-(Checked: Harmonic, Elliott, Candlestick, Chart patterns)
+❌ No patterns detected (threshold: 50%+)
 
-Threshold: confidence > 50%"""
+Checked:
+• Harmonic Patterns
+• Elliott Wave
+• Chart Patterns (50+ candles)
+• Candlestick Patterns
+
+Waiting for clearer patterns..."""
+            
             telegram_status = send_telegram(no_pattern_msg)
             
             return jsonify({
                 "status": "success",
-                "message": "No patterns found (even with low threshold)",
+                "message": "No patterns found",
                 "telegram_status": telegram_status,
-                "debug": {
-                    "candlestick_checked": len(candlestick_patterns),
-                    "chart_checked": len(chart_patterns)
-                }
+                "threshold_used": "50%",
+                "patterns_checked": len(all_patterns)
             })
         
-        # ส่งแบบ multiple patterns
-        send_status = send_multiple_patterns_message(all_patterns, shared_df)
+        # ส่งแบบ multiple patterns (Top 5)
+        send_status = send_multiple_patterns_message(combined_patterns, shared_df)
+        
+        # จำแนกประเภท
+        candlestick_count = sum(
+            1 for p in combined_patterns 
+            if p.get('method') in ['SINGLE_CANDLESTICK', 'TWO_CANDLESTICK', 'THREE_CANDLESTICK']
+        )
+        
+        chart_count = sum(
+            1 for p in combined_patterns 
+            if p.get('method') in ['CHART_PATTERN', 'RULE_BASED', 'TREND_ANALYSIS']
+        )
+        
+        priority_count = sum(1 for p in combined_patterns if p.get('priority', False))
         
         return jsonify({
             "status": "success",
-            "message": f"Sent {min(len(all_patterns), 5)} charts",
-            "patterns_found": len(all_patterns),
+            "message": f"Sent {min(len(combined_patterns), 5)} charts",
+            "patterns_found": len(combined_patterns),
             "telegram_status": send_status,
             "patterns": [
                 {
+                    "rank": i+1,
                     "name": p['pattern_name'],
                     "confidence": f"{p['confidence']:.1%}",
-                    "priority": p.get('priority', False)
+                    "priority": p.get('priority', False),
+                    "method": p.get('method')
                 }
-                for p in all_patterns[:5]
+                for i, p in enumerate(combined_patterns[:5])
             ],
             "breakdown": {
-                "priority": sum(1 for p in all_patterns if p.get('priority', False)),
-                "candlestick": sum(1 for p in all_patterns if p.get('method') in ['SINGLE_CANDLESTICK', 'TWO_CANDLESTICK', 'THREE_CANDLESTICK']),
-                "chart": sum(1 for p in all_patterns if p.get('method') in ['CHART_PATTERN', 'RULE_BASED'])
-            }
+                "priority": priority_count,
+                "candlestick": candlestick_count,
+                "chart": chart_count,
+                "total": len(combined_patterns)
+            },
+            "threshold_used": "50%"
         })
         
     except Exception as e:
+        import traceback
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": str(e),
+            "traceback": traceback.format_exc()
         }), 500
     
 @app.route('/test-pattern-chart')
