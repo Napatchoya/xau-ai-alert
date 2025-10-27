@@ -9415,6 +9415,78 @@ def send_telegram(message: str) -> int:
         return 500
 
 # ====================== Flask Routes ======================
+@app.route('/debug-all-patterns')
+def debug_all_patterns():
+    """Debug: แสดง Patterns ทั้งหมดที่ตรวจพบ (รวมที่ confidence ต่ำ)"""
+    try:
+        shared_df = get_shared_xau_data()
+        if shared_df is None or len(shared_df) < 50:
+            return jsonify({
+                "status": "error",
+                "message": "Insufficient data"
+            })
+        
+        detector = AdvancedPatternDetector()
+        
+        # 1. Candlestick patterns
+        candlestick_patterns = detector.detect_all_candlestick_patterns(shared_df)
+        
+        # 2. Chart patterns
+        chart_patterns = detector.detect_all_chart_patterns(shared_df)
+        
+        # 3. Harmonic
+        harmonic_detector = HarmonicPatternDetector()
+        harmonic_result = harmonic_detector.detect_harmonic_patterns(shared_df)
+        
+        # 4. Elliott
+        elliott_detector = ElliottWaveDetector()
+        elliott_result = elliott_detector.detect_elliott_waves(shared_df)
+        
+        return jsonify({
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "candlestick_patterns": {
+                "count": len(candlestick_patterns),
+                "patterns": [
+                    {
+                        "name": p['pattern_name'],
+                        "confidence": f"{p['confidence']:.1%}",
+                        "method": p['method']
+                    }
+                    for p in candlestick_patterns
+                ]
+            },
+            "chart_patterns": {
+                "count": len(chart_patterns),
+                "patterns": [
+                    {
+                        "name": p['pattern_name'],
+                        "confidence": f"{p['confidence']:.1%}",
+                        "method": p['method']
+                    }
+                    for p in chart_patterns
+                ]
+            },
+            "harmonic": {
+                "pattern": harmonic_result.get('pattern_name'),
+                "confidence": f"{harmonic_result.get('confidence', 0):.1%}"
+            },
+            "elliott": {
+                "pattern": elliott_result.get('pattern_name'),
+                "confidence": f"{elliott_result.get('confidence', 0):.1%}"
+            },
+            "summary": {
+                "total_patterns": len(candlestick_patterns) + len(chart_patterns),
+                "has_harmonic": harmonic_result.get('pattern_name') != 'NO_PATTERN',
+                "has_elliott": elliott_result.get('pattern_name') != 'NO_PATTERN'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/test-harmonic')
 def test_harmonic():
