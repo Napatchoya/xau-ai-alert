@@ -10081,6 +10081,70 @@ Waiting for clearer patterns..."""
             "message": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+@app.route('/show-recent-candles')
+def show_recent_candles():
+    """แสดงแท่งเทียน 5 แท่งล่าสุด"""
+    try:
+        shared_df = get_shared_xau_data()
+        if shared_df is None or len(shared_df) < 5:
+            return jsonify({
+                "status": "error",
+                "message": "Insufficient data"
+            })
+        
+        recent = shared_df.tail(5)
+        
+        candles_info = []
+        for i, (idx, row) in enumerate(recent.iterrows(), 1):
+            body_size = abs(row['close'] - row['open'])
+            upper_shadow = row['high'] - max(row['open'], row['close'])
+            lower_shadow = min(row['open'], row['close']) - row['low']
+            candle_range = row['high'] - row['low']
+            
+            candle_type = "BULLISH" if row['close'] >= row['open'] else "BEARISH"
+            
+            body_ratio = body_size / candle_range if candle_range > 0 else 0
+            
+            # ตรวจสอบว่าเป็น pattern ประเภทไหน
+            pattern_hints = []
+            
+            if body_ratio < 0.1:
+                pattern_hints.append("DOJI-like")
+            if lower_shadow > body_size * 2 and upper_shadow < body_size * 0.5:
+                pattern_hints.append("HAMMER-like")
+            if upper_shadow > body_size * 2 and lower_shadow < body_size * 0.5:
+                pattern_hints.append("SHOOTING_STAR-like")
+            if body_ratio > 0.9:
+                pattern_hints.append("MARUBOZU-like")
+            
+            candles_info.append({
+                "candle": i,
+                "time": idx.strftime("%Y-%m-%d %H:%M") if hasattr(idx, 'strftime') else str(idx),
+                "type": candle_type,
+                "open": float(row['open']),
+                "high": float(row['high']),
+                "low": float(row['low']),
+                "close": float(row['close']),
+                "body_size": float(body_size),
+                "upper_shadow": float(upper_shadow),
+                "lower_shadow": float(lower_shadow),
+                "body_ratio": f"{body_ratio:.2%}",
+                "pattern_hints": pattern_hints if pattern_hints else ["No clear pattern"]
+            })
+        
+        return jsonify({
+            "status": "success",
+            "current_price": float(recent['close'].iloc[-1]),
+            "recent_candles": candles_info,
+            "note": "Pattern hints are approximations, not official detections"
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
     
 @app.route('/test-pattern-chart')
 def test_pattern_chart():
