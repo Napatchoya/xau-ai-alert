@@ -9488,6 +9488,72 @@ def debug_all_patterns():
             "message": str(e)
         }), 500
 
+@app.route('/test-candlestick-only')
+def test_candlestick_only():
+    """ทดสอบตรวจจับเฉพาะ Candlestick Patterns"""
+    try:
+        shared_df = get_shared_xau_data()
+        if shared_df is None or len(shared_df) < 5:
+            return jsonify({
+                "status": "error",
+                "message": "Insufficient data"
+            })
+        
+        detector = AdvancedPatternDetector()
+        
+        # ตรวจจับเฉพาะ Candlestick
+        patterns = detector.detect_all_candlestick_patterns(shared_df)
+        
+        # กรองเฉพาะที่พบ
+        found_patterns = [p for p in patterns if p['pattern_name'] != 'NO_PATTERN']
+        
+        if not found_patterns:
+            msg = "📊 Candlestick Test\n\n❌ No candlestick patterns detected"
+            send_telegram(msg)
+            
+            return jsonify({
+                "status": "info",
+                "message": "No candlestick patterns found",
+                "last_5_candles": {
+                    "open": shared_df['open'].tail(5).tolist(),
+                    "high": shared_df['high'].tail(5).tolist(),
+                    "low": shared_df['low'].tail(5).tolist(),
+                    "close": shared_df['close'].tail(5).tolist()
+                }
+            })
+        
+        # สร้างข้อความสรุป
+        msg = f"""📊 Candlestick Patterns Detected
+
+Found {len(found_patterns)} pattern(s):
+
+"""
+        for i, p in enumerate(found_patterns[:5], 1):
+            msg += f"{i}. {p['pattern_name']}\n"
+            msg += f"   Confidence: {p['confidence']:.1%}\n"
+            msg += f"   Type: {p['method']}\n\n"
+        
+        send_telegram(msg)
+        
+        return jsonify({
+            "status": "success",
+            "patterns_found": len(found_patterns),
+            "patterns": [
+                {
+                    "name": p['pattern_name'],
+                    "confidence": f"{p['confidence']:.1%}",
+                    "method": p['method']
+                }
+                for p in found_patterns
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route('/test-harmonic')
 def test_harmonic():
     """Test Harmonic pattern detection"""
