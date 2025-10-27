@@ -9417,7 +9417,7 @@ def send_telegram(message: str) -> int:
 # ====================== Flask Routes ======================
 @app.route('/debug-all-patterns')
 def debug_all_patterns():
-    """Debug: แสดง Patterns ทั้งหมดที่ตรวจพบ (รวมที่ confidence ต่ำ)"""
+    """Debug: แสดง Patterns ทั้งหมดที่ตรวจพบ - FIXED VERSION"""
     try:
         shared_df = get_shared_xau_data()
         if shared_df is None or len(shared_df) < 50:
@@ -9426,66 +9426,205 @@ def debug_all_patterns():
                 "message": "Insufficient data"
             })
         
+        current_time = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
+        current_price = float(shared_df['close'].iloc[-1])
+        
+        # ใช้เฉพาะ method ที่มีอยู่จริงใน class
         detector = AdvancedPatternDetector()
         
-        # 1. Candlestick patterns
-        candlestick_patterns = detector.detect_all_candlestick_patterns(shared_df)
+        # Method นี้มีอยู่จริง - ใช้งานได้
+        all_patterns = detector.detect_all_patterns(shared_df.tail(50))
         
-        # 2. Chart patterns
-        chart_patterns = detector.detect_all_chart_patterns(shared_df)
+        # แยกประเภท pattern จาก method name
+        candlestick_patterns = []
+        chart_patterns = []
         
-        # 3. Harmonic
-        harmonic_detector = HarmonicPatternDetector()
-        harmonic_result = harmonic_detector.detect_harmonic_patterns(shared_df)
+        for p in all_patterns:
+            if p['pattern_name'] == 'NO_PATTERN':
+                continue
+            
+            method = p.get('method', '')
+            
+            # จำแนกตาม method
+            if 'CANDLESTICK' in method:
+                candlestick_patterns.append(p)
+            else:
+                chart_patterns.append(p)
         
-        # 4. Elliott
-        elliott_detector = ElliottWaveDetector()
-        elliott_result = elliott_detector.detect_elliott_waves(shared_df)
+        # ตรวจจับ Harmonic
+        try:
+            harmonic_detector = HarmonicPatternDetector()
+            harmonic_result = harmonic_detector.detect_harmonic_patterns(shared_df)
+        except Exception as e:
+            harmonic_result = {
+                'pattern_name': 'ERROR',
+                'confidence': 0,
+                'method': f'Error: {str(e)}'
+            }
         
+        # ตรวจจับ Elliott
+        try:
+            elliott_detector = ElliottWaveDetector()
+            elliott_result = elliott_detector.detect_elliott_waves(shared_df)
+        except Exception as e:
+            elliott_result = {
+                'pattern_name': 'ERROR',
+                'confidence': 0,
+                'method': f'Error: {str(e)}'
+            }
+        
+        # สร้าง response
         return jsonify({
             "status": "success",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": current_time,
+            "data_info": {
+                "total_candles": len(shared_df),
+                "analyzed_candles": 50,
+                "current_price": current_price
+            },
+            
             "candlestick_patterns": {
                 "count": len(candlestick_patterns),
                 "patterns": [
                     {
                         "name": p['pattern_name'],
                         "confidence": f"{p['confidence']:.1%}",
-                        "method": p['method']
+                        "method": p['method'],
+                        "pattern_id": p.get('pattern_id', 'N/A')
                     }
-                    for p in candlestick_patterns
+                    for p in sorted(candlestick_patterns, key=lambda x: x['confidence'], reverse=True)
                 ]
             },
+            
             "chart_patterns": {
                 "count": len(chart_patterns),
                 "patterns": [
                     {
                         "name": p['pattern_name'],
                         "confidence": f"{p['confidence']:.1%}",
-                        "method": p['method']
+                        "method": p['method'],
+                        "pattern_id": p.get('pattern_id', 'N/A')
                     }
-                    for p in chart_patterns
+                    for p in sorted(chart_patterns, key=lambda x: x['confidence'], reverse=True)
                 ]
             },
-            "harmonic": {
+            
+            "harmonic_pattern": {
+                "detected": harmonic_result.get('pattern_name') not in ['NO_PATTERN', 'ERROR'],
                 "pattern": harmonic_result.get('pattern_name'),
-                "confidence": f"{harmonic_result.get('confidence', 0):.1%}"
+                "confidence": f"{harmonic_result.get('confidence', 0):.1%}",
+                "method": harmonic_result.get('method', 'N/A')
             },
-            "elliott": {
+            
+            "elliott_wave": {
+                "detected": elliott_result.get('pattern_name') not in ['NO_PATTERN', 'ERROR'],
                 "pattern": elliott_result.get('pattern_name'),
-                "confidence": f"{elliott_result.get('confidence', 0):.1%}"
+                "confidence": f"{elliott_result.get('confidence', 0):.1%}",
+                "method": elliott_result.get('method', 'N/A')
             },
+            
             "summary": {
-                "total_patterns": len(candlestick_patterns) + len(chart_patterns),
-                "has_harmonic": harmonic_result.get('pattern_name') != 'NO_PATTERN',
-                "has_elliott": elliott_result.get('pattern_name') != 'NO_PATTERN'
-            }
+                "total_patterns_found": len(candlestick_patterns) + len(chart_patterns),
+                "candlestick_count": len(candlestick_patterns),
+                "chart_count": len(chart_patterns),
+                "has_harmonic": harmonic_result.get('pattern_name') not in ['NO_PATTERN', 'ERROR'],
+                "has_elliott": elliott_result.get('pattern_name') not in ['NO_PATTERN', 'ERROR'],
+                "confidence_range": {
+                    "min": f"{min([p['confidence'] for p in all_patterns if p['pattern_name'] != 'NO_PATTERN'], default=0):.1%}",
+                    "max": f"{max([p['confidence'] for p in all_patterns if p['pattern_name'] != 'NO_PATTERN'], default=0):.1%}"
+                } if len([p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN']) > 0 else None
+            },
+            
+            "all_patterns_list": [
+                {
+                    "rank": i+1,
+                    "name": p['pattern_name'],
+                    "confidence": f"{p['confidence']:.1%}",
+                    "method": p['method'],
+                    "type": "Candlestick" if 'CANDLESTICK' in p.get('method', '') else "Chart"
+                }
+                for i, p in enumerate(
+                    sorted(
+                        [p for p in all_patterns if p['pattern_name'] != 'NO_PATTERN'],
+                        key=lambda x: x['confidence'],
+                        reverse=True
+                    )
+                )
+            ]
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+@app.route('/check-methods')
+def check_methods():
+    """ตรวจสอบว่า AdvancedPatternDetector มี methods อะไรบ้าง"""
+    try:
+        detector = AdvancedPatternDetector()
+        
+        # ดึง methods ทั้งหมด
+        all_methods = [method for method in dir(detector) if not method.startswith('_')]
+        
+        # แยกตาม prefix
+        detect_methods = [m for m in all_methods if m.startswith('detect')]
+        check_methods = [m for m in all_methods if m.startswith('check')]
+        other_methods = [m for m in all_methods if not m.startswith('detect') and not m.startswith('check')]
+        
+        return jsonify({
+            "status": "success",
+            "class": "AdvancedPatternDetector",
+            "total_methods": len(all_methods),
+            "detect_methods": detect_methods,
+            "check_methods": check_methods,
+            "other_methods": other_methods,
+            "note": "Use only methods listed here"
         })
         
     except Exception as e:
         return jsonify({
             "status": "error",
             "message": str(e)
+        }), 500
+
+@app.route('/simple-pattern-check')
+def simple_pattern_check():
+    """ตรวจสอบ patterns แบบง่ายที่สุด"""
+    try:
+        shared_df = get_shared_xau_data()
+        if shared_df is None or len(shared_df) < 10:
+            return jsonify({
+                "status": "error",
+                "message": "Insufficient data"
+            })
+        
+        detector = AdvancedPatternDetector()
+        
+        # ใช้ method เดียวที่แน่ใจว่ามี
+        result = detector.detect_pattern(shared_df.tail(50))
+        
+        return jsonify({
+            "status": "success",
+            "current_price": float(shared_df['close'].iloc[-1]),
+            "pattern_detected": {
+                "name": result.get('pattern_name', 'UNKNOWN'),
+                "confidence": f"{result.get('confidence', 0):.1%}",
+                "method": result.get('method', 'N/A'),
+                "pattern_id": result.get('pattern_id', 0)
+            },
+            "note": "Using basic detect_pattern() method only"
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
         }), 500
 
 @app.route('/test-candlestick-only')
