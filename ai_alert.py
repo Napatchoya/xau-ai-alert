@@ -5246,43 +5246,7 @@ class AdvancedPatternDetector:
                 'confidence': 0.30,
                 'method': 'ERROR'
             }]
-    
-    def detect_all_candlestick_patterns(self, df):
-        """Detect ALL candlestick patterns - FIXED VERSION"""
-        try:
-            patterns_found = []
-            recent_data = df.tail(5)
-            if len(recent_data) < 3:
-                return patterns_found
-        
-            # Single candlestick patterns
-            last_candle = recent_data.iloc[-1]
-            single_patterns = self.detect_all_single_candlestick(last_candle)
-            patterns_found.extend(single_patterns)
-        
-            # เพิ่ม Hanging Man detection สำหรับ single candle
-            hanging_man = self.check_hanging_man(last_candle)
-            patterns_found.extend(hanging_man)
-        
-            # Two candlestick patterns
-            if len(recent_data) >= 2:
-                two_patterns = self.detect_all_two_candlestick(recent_data.tail(2))
-                patterns_found.extend(two_patterns)
-            
-                # เพิ่ม Tweezer patterns
-                tweezer_patterns = self.check_tweezer_patterns(recent_data.tail(2))
-                patterns_found.extend(tweezer_patterns)
-        
-            # Three candlestick patterns
-            if len(recent_data) >= 3:
-                three_patterns = self.detect_all_three_candlestick(recent_data.tail(3))
-                patterns_found.extend(three_patterns)
-        
-            return patterns_found
-        
-        except Exception as e:
-            print(f"All candlestick patterns error: {e}")
-            return []   
+       
 
     def detect_all_single_candlestick(self, candle):
         """Detect ALL single candlestick patterns - COMPLETE VERSION"""
