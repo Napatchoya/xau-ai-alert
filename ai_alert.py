@@ -180,8 +180,29 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
     try:
         pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
         
-        # Classic Patterns
-        if pattern_name == 'DOUBLE_TOP':
+        # ✅ Priority: Harmonic Patterns
+        if pattern_name in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
+            if 'points' in pattern_info and pattern_info['points']:
+                print(f"📊 Drawing Harmonic pattern: {pattern_name}")
+                draw_harmonic_on_chart(ax, df, pattern_info['points'], pattern_name)
+                return
+        
+        # ✅ AB=CD Pattern
+        elif pattern_name == 'AB_CD':
+            if 'points' in pattern_info and pattern_info['points']:
+                print(f"📊 Drawing AB=CD pattern")
+                draw_abcd_on_chart(ax, df, pattern_info['points'])
+                return
+        
+        # ✅ Elliott Wave Patterns
+        elif pattern_name in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
+            if 'wave_points' in pattern_info and pattern_info['wave_points']:
+                print(f"📊 Drawing Elliott Wave: {pattern_name}")
+                draw_elliott_wave_on_chart(ax, df, pattern_info['wave_points'], pattern_name)
+                return
+        
+        # Classic Chart Patterns
+        elif pattern_name == 'DOUBLE_TOP':
             draw_double_top_on_chart(ax, df)
         elif pattern_name == 'HEAD_SHOULDERS':
             draw_head_shoulders_on_chart(ax, df)
@@ -189,12 +210,16 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
             draw_double_bottom_on_chart(ax, df)
         elif pattern_name == 'BULL_FLAG':
             draw_bull_flag_on_chart(ax, df)
-        elif pattern_name == 'SYMMETRICAL_TRIANGLE':
-            draw_symmetrical_triangle_on_chart(ax, df)    
         elif pattern_name == 'BEAR_FLAG':
             draw_bear_flag_on_chart(ax, df)
+        elif pattern_name == 'SYMMETRICAL_TRIANGLE':
+            draw_symmetrical_triangle_on_chart(ax, df)
+        elif pattern_name == 'ASCENDING_TRIANGLE':
+            draw_ascending_triangle_on_chart(ax, df)
+        elif pattern_name == 'DESCENDING_TRIANGLE':
+            draw_descending_triangle_on_chart(ax, df)
         elif pattern_name == 'PENNANT':
-            draw_pennant_on_chart(ax, df) 
+            draw_pennant_on_chart(ax, df)
         elif pattern_name == 'WEDGE_RISING':
             draw_wedge_rising_on_chart(ax, df)
         elif pattern_name == 'WEDGE_FALLING':
@@ -207,26 +232,35 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
             draw_rectangle_on_chart(ax, df)
         elif pattern_name == 'DIAMOND':
             draw_diamond_on_chart(ax, df)
-        elif pattern_name == 'ASCENDING_TRIANGLE':
-            draw_ascending_triangle_on_chart(ax, df)
-        elif pattern_name == 'DESCENDING_TRIANGLE':
-            draw_descending_triangle_on_chart(ax, df)
+        
+        # Additional pattern support (if functions exist)
+        elif pattern_name == 'DOJI':
+            # Doji is a single candlestick - mark on chart differently
+            if len(df) > 0:
+                last_candle = df.iloc[-1]
+                ax.scatter([len(df)-1], [last_candle['close']], 
+                          color='#ffff00', s=200, marker='*', 
+                          label='DOJI', zorder=15)
+        
+        elif pattern_name == 'HAMMER':
+            if len(df) > 0:
+                last_candle = df.iloc[-1]
+                ax.scatter([len(df)-1], [last_candle['low']], 
+                          color='#00ff88', s=200, marker='^', 
+                          label='HAMMER', zorder=15)
+        
+        elif pattern_name == 'SHOOTING_STAR':
+            if len(df) > 0:
+                last_candle = df.iloc[-1]
+                ax.scatter([len(df)-1], [last_candle['high']], 
+                          color='#ff4444', s=200, marker='v', 
+                          label='SHOOTING STAR', zorder=15)
+        
+        else:
+            print(f"⚠️ No specific drawing function for pattern: {pattern_name}")
             
-        # Harmonic Patterns
-        elif pattern_name in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
-            if 'points' in pattern_info and pattern_info['points']:
-                draw_harmonic_on_chart(ax, df, pattern_info['points'], pattern_name)
-        elif pattern_name == 'AB_CD':
-            if 'points' in pattern_info and pattern_info['points']:
-                draw_abcd_on_chart(ax, df, pattern_info['points'])
-                
-        # Elliott Wave
-        elif pattern_name in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
-            if 'wave_points' in pattern_info and pattern_info['wave_points']:
-                draw_elliott_wave_on_chart(ax, df, pattern_info['wave_points'], pattern_name)
-                
     except Exception as e:
-        print(f"Enhanced pattern marking error: {e}")
+        print(f"❌ Enhanced pattern marking error: {e}")
         import traceback
         traceback.print_exc()
 
