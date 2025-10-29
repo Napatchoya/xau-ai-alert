@@ -1740,9 +1740,11 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
         valid_points = []
         
         # ✅ FIX: คำนวณ offset ถูกต้อง
-        full_df_length = 100  # จำนวน bars ทั้งหมดที่ดึงมา
-        chart_df_length = len(df)  # จำนวน bars ที่แสดงในกราฟ (50)
+        full_df_length = len(df)  # ใช้ความยาวจริงของ df ที่ส่งเข้ามา
+        chart_df_length = min(50, len(df))  # จำนวน bars ที่แสดงในกราฟ
         offset = full_df_length - chart_df_length
+        
+        print(f"🔍 Harmonic Debug: full_length={full_df_length}, chart_length={chart_df_length}, offset={offset}")
         
         for point_name in point_order:
             if point_name in points and points[point_name]:
@@ -1752,6 +1754,8 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
                 # คำนวณ index สำหรับกราฟ
                 chart_idx = original_idx - offset
                 
+                print(f"  Point {point_name}: original_idx={original_idx}, chart_idx={chart_idx}, price={price:.2f}")
+                
                 # ตรวจสอบว่าอยู่ในช่วงที่แสดง
                 if 0 <= chart_idx < chart_df_length:
                     valid_points.append({
@@ -1760,10 +1764,32 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
                         'price': price,
                         'color': colors[point_name]
                     })
+                else:
+                    print(f"  ⚠️ Point {point_name} out of range!")
         
         if len(valid_points) < 4:
-            print(f"⚠️ Not enough valid points for {pattern_name}")
+            print(f"⚠️ Not enough valid points for {pattern_name}: {len(valid_points)}/5")
             return
+        
+        print(f"✅ Drawing {len(valid_points)} points for {pattern_name}")
+        
+        # 🎯 วาดจุด XABCD
+        for point in valid_points:
+            ax.scatter([point['idx']], [point['price']], 
+                      color=point['color'], s=250, marker='D',  # ✅ เพิ่มขนาด
+                      label=f"Point {point['name']}", zorder=15,
+                      edgecolors='white', linewidths=3)
+            
+            # 📝 เพิ่ม Label ที่ชัดเจน
+            ax.text(point['idx'], point['price'] + 10, 
+                   f"🎯 {point['name']}", 
+                   ha='center', va='bottom', 
+                   color=point['color'], 
+                   fontweight='bold', fontsize=14,
+                   bbox=dict(boxstyle='round,pad=0.6', 
+                            facecolor='black', 
+                            edgecolor=point['color'],
+                            alpha=0.95, linewidth=2))
         
         # 📏 วาดเส้นเชื่อมจุด
         for i in range(len(valid_points) - 1):
@@ -1773,7 +1799,7 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
             ax.plot([p1['idx'], p2['idx']], 
                    [p1['price'], p2['price']], 
                    color='#ffffff', linestyle='-', 
-                   linewidth=2.5, alpha=0.7, zorder=10)
+                   linewidth=3, alpha=0.8, zorder=10)
             
             # แสดงชื่อขา
             mid_x = (p1['idx'] + p2['idx']) / 2
@@ -1782,15 +1808,14 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
             
             ax.text(mid_x, mid_y, leg_name, 
                    ha='center', va='center',
-                   color='#ffaa00', fontweight='bold', fontsize=10,
-                   bbox=dict(boxstyle='round,pad=0.3', 
-                            facecolor='black', alpha=0.8))
+                   color='#ffaa00', fontweight='bold', fontsize=11,
+                   bbox=dict(boxstyle='round,pad=0.4', 
+                            facecolor='black', alpha=0.9))
         
-        # 🎯 แสดง Fibonacci Retracements สำหรับแต่ละ pattern
+        # 🎯 คำนวณและแสดง Fibonacci Ratios
         if len(valid_points) >= 5:  # XABCD complete
             X, A, B, C, D = valid_points[:5]
             
-            # คำนวณ ratios
             XA = abs(A['price'] - X['price'])
             AB = abs(B['price'] - A['price'])
             BC = abs(C['price'] - B['price'])
@@ -1798,45 +1823,43 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
             AD = abs(D['price'] - A['price'])
             
             # แสดง ratios บนกราฟ
-            ratio_text = f"""
-🦋 {pattern_name} RATIOS:
+            ratio_text = f"""🦋 {pattern_name} RATIOS:
 AB/XA = {(AB/XA):.3f}
 BC/AB = {(BC/AB):.3f} 
 CD/BC = {(CD/BC):.3f}
-AD/XA = {(AD/XA):.3f}
-"""
+AD/XA = {(AD/XA):.3f}"""
             
             ax.text(0.02, 0.98, ratio_text.strip(), 
                    transform=ax.transAxes,
                    verticalalignment='top',
-                   color='#ffff00', fontsize=9,
+                   color='#ffff00', fontsize=10,
                    fontweight='bold',
                    bbox=dict(boxstyle='round,pad=0.8', 
                             facecolor='#1a1a1a', 
                             edgecolor='#ffff00',
                             alpha=0.95, linewidth=2))
             
-            # 🎯 วาด PRZ (Potential Reversal Zone) ที่จุด D
+            # 🎯 วาด PRZ (Potential Reversal Zone)
             prz_upper = D['price'] * 1.002
             prz_lower = D['price'] * 0.998
             
             ax.axhspan(prz_lower, prz_upper, 
                       alpha=0.2, color='#ff00ff', 
-                      label='PRZ (Reversal Zone)', zorder=5)
+                      label='PRZ Zone', zorder=5)
             
-            ax.text(len(df) - 3, D['price'], 
-                   '🎯 PRZ\n(Entry Zone)', 
+            ax.text(chart_df_length - 3, D['price'], 
+                   '🎯 PRZ\nEntry', 
                    ha='right', va='center',
-                   color='#ff00ff', fontweight='bold', fontsize=11,
+                   color='#ff00ff', fontweight='bold', fontsize=12,
                    bbox=dict(boxstyle='round,pad=0.5', 
                             facecolor='black', 
                             edgecolor='#ff00ff',
-                            alpha=0.9, linewidth=2))
+                            alpha=0.95, linewidth=2))
         
-        print(f"✅ {pattern_name} Harmonic Pattern drawn with {len(valid_points)} points")
+        print(f"✅ {pattern_name} Harmonic drawn successfully!")
         
     except Exception as e:
-        print(f"❌ Draw Harmonic Pattern error: {e}")
+        print(f"❌ Draw Harmonic error: {e}")
         import traceback
         traceback.print_exc()
 
@@ -1958,7 +1981,7 @@ CD/AB Ratio = {ratio:.3f}
         traceback.print_exc()
 
 def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
-    """วาด Elliott Wave Pattern บนกราฟ"""
+    """วาด Elliott Wave บนกราฟ - FIXED"""
     try:
         if pattern_type == 'ELLIOTT_WAVE_5':
             point_order = ['start', '1', '2', '3', '4', '5']
@@ -1981,14 +2004,23 @@ def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
         
         valid_points = []
         
+        # ✅ คำนวณ offset
+        full_df_length = len(df)
+        chart_df_length = min(50, len(df))
+        offset = full_df_length - chart_df_length
+        
+        print(f"🌊 Elliott Debug: pattern={pattern_type}, offset={offset}")
+        
         for wave_name in point_order:
             if wave_name in wave_points and wave_points[wave_name]:
                 wave_data = wave_points[wave_name]
                 original_idx, price, wtype = wave_data
                 
-                chart_idx = len(df) - 50 + original_idx if original_idx >= len(df) - 50 else original_idx
+                chart_idx = original_idx - offset
                 
-                if 0 <= chart_idx < 50:
+                print(f"  Wave {wave_name}: original_idx={original_idx}, chart_idx={chart_idx}, price={price:.2f}")
+                
+                if 0 <= chart_idx < chart_df_length:
                     valid_points.append({
                         'name': wave_name,
                         'idx': chart_idx,
@@ -1997,8 +2029,10 @@ def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
                     })
         
         if len(valid_points) < 3:
-            print(f"⚠️ Not enough valid points for {pattern_type} (found {len(valid_points)})")
+            print(f"⚠️ Not enough waves for {pattern_type}: {len(valid_points)}")
             return
+        
+        print(f"✅ Drawing {len(valid_points)} waves for {pattern_type}")
         
         # 🌊 วาดจุด Wave
         for point in valid_points:
@@ -2007,8 +2041,7 @@ def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
                       label=f"Wave {point['name']}", zorder=15,
                       edgecolors='white', linewidths=3)
             
-            # Label
-            ax.text(point['idx'], point['price'] + 8, 
+            ax.text(point['idx'], point['price'] + 10, 
                    f"🌊 W{point['name']}", 
                    ha='center', va='bottom', 
                    color=point['color'], 
@@ -2016,18 +2049,15 @@ def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
                    bbox=dict(boxstyle='round,pad=0.5', 
                             facecolor='black', 
                             edgecolor=point['color'],
-                            alpha=0.9, linewidth=2))
+                            alpha=0.95, linewidth=2))
         
-        # 📏 วาดเส้นเชื่อม Waves
+        # 📏 วาดเส้นเชื่อม
         for i in range(len(valid_points) - 1):
             p1 = valid_points[i]
             p2 = valid_points[i + 1]
             
-            # สลับสีเส้น (impulse vs corrective)
-            if pattern_type == 'ELLIOTT_WAVE_5':
-                line_color = '#00ffcc' if i % 2 == 0 else '#ff6666'
-            else:
-                line_color = '#00ffcc'
+            # สลับสีเส้น
+            line_color = '#00ffcc' if i % 2 == 0 else '#ff6666'
             
             ax.plot([p1['idx'], p2['idx']], 
                    [p1['price'], p2['price']], 
@@ -2038,30 +2068,27 @@ def draw_elliott_wave_on_chart(ax, df, wave_points, pattern_type):
         if pattern_type == 'ELLIOTT_WAVE_5' and len(valid_points) == 6:
             start, w1, w2, w3, w4, w5 = valid_points
             
-            wave1_size = abs(w1['price'] - start['price'])
-            wave3_size = abs(w3['price'] - w2['price'])
-            wave5_size = abs(w5['price'] - w4['price'])
+            wave1 = abs(w1['price'] - start['price'])
+            wave3 = abs(w3['price'] - w2['price'])
+            wave5 = abs(w5['price'] - w4['price'])
             
-            analysis = f"""
-🌊 ELLIOTT WAVE 5:
-Wave 1: {wave1_size:.2f}
-Wave 3: {wave3_size:.2f}
-Wave 5: {wave5_size:.2f}
-
-W3/W1: {(wave3_size/wave1_size):.2f}x
-"""
+            analysis = f"""🌊 ELLIOTT 5:
+W1: {wave1:.2f}
+W3: {wave3:.2f}
+W5: {wave5:.2f}
+W3/W1: {(wave3/wave1):.2f}x"""
             
             ax.text(0.02, 0.70, analysis.strip(), 
                    transform=ax.transAxes,
                    verticalalignment='top',
-                   color='#00ffcc', fontsize=9,
+                   color='#00ffcc', fontsize=10,
                    fontweight='bold',
                    bbox=dict(boxstyle='round,pad=0.8', 
                             facecolor='#1a1a1a', 
                             edgecolor='#00ffcc',
                             alpha=0.95, linewidth=2))
         
-        print(f"✅ {pattern_type} drawn with {len(valid_points)} waves")
+        print(f"✅ {pattern_type} drawn successfully!")
         
     except Exception as e:
         print(f"❌ Draw Elliott Wave error: {e}")
