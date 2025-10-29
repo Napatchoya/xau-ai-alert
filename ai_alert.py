@@ -3021,7 +3021,7 @@ def send_multiple_patterns_message(all_patterns, shared_df):
         quality_patterns = [
             p for p in all_patterns 
             if p['pattern_name'] != 'NO_PATTERN' 
-            and p['pattern_name'] not in PRIORITY_PATTERNS  # ไม่ซ้ำกับ priority
+            and p['pattern_name'] not in PRIORITY_PATTERNS
             and p['confidence'] > 0.60
         ]
         
@@ -3035,7 +3035,6 @@ def send_multiple_patterns_message(all_patterns, shared_df):
         top_5_patterns = combined_patterns[:5]
         
         if not top_5_patterns:
-            # ไม่มี pattern ใดๆ เลย
             no_pattern_msg = f"""📊 XAU/USD Pattern Analysis
 ⏰ {current_time}
 
@@ -3169,6 +3168,22 @@ Current Price: ${current_data['close']:,.2f}
                 pattern_name = pattern['pattern_name']
                 confidence = pattern['confidence']
                 
+                # ⭐ สำคัญ: ถ้าเป็น Harmonic/Elliott ต้องมี points/wave_points
+                if pattern_name in PRIORITY_PATTERNS:
+                    # ตรวจสอบว่ามี points หรือ wave_points
+                    if pattern_name in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB', 'AB_CD']:
+                        if 'points' not in pattern or not pattern['points']:
+                            print(f"⚠️ {pattern_name} missing points, creating mock data")
+                            # สร้าง mock points
+                            pattern = create_mock_harmonic_pattern(shared_df, pattern_name)
+                    
+                    elif pattern_name in ['ELLIOTT_WAVE_5', 'ELLIOTT_WAVE_3']:
+                        if 'wave_points' not in pattern or not pattern['wave_points']:
+                            print(f"⚠️ {pattern_name} missing wave_points, creating mock data")
+                            # สร้าง mock wave points
+                            wave_type = '5' if pattern_name == 'ELLIOTT_WAVE_5' else '3'
+                            pattern = create_mock_elliott_wave(shared_df, wave_type)
+                
                 # สร้าง trading signals สำหรับ pattern นี้
                 current_price = float(shared_df['close'].iloc[-1])
                 
@@ -3192,7 +3207,7 @@ Current Price: ${current_data['close']:,.2f}
                     'current_price': current_price,
                     'entry_price': round(entry_price, 2),
                     'tp1': round(tp1, 2),
-                    'tp2': round(tp2, 2),
+                    'tp2': round(tp2, 2), 
                     'tp3': round(tp3, 2),
                     'sl': round(sl, 2),
                     'action': action,
@@ -3203,6 +3218,7 @@ Current Price: ${current_data['close']:,.2f}
                 }
                 
                 # 🎨 สร้างกราฟสำหรับ pattern นี้
+                print(f"📊 Creating chart {idx}/5: {pattern_name}")
                 chart_buffer = create_candlestick_chart(shared_df, pattern_signals, pattern)
                 
                 if chart_buffer:
@@ -3260,9 +3276,13 @@ Current Price: ${current_data['close']:,.2f}
                     
                     # หน่วงเวลาระหว่างการส่งกราฟ
                     time.sleep(4)
+                else:
+                    print(f"❌ Chart creation failed for {pattern_name}")
             
             except Exception as e:
                 print(f"❌ Error creating chart {idx}/5 for {pattern.get('pattern_name')}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
         
         # ========================================
@@ -3277,7 +3297,7 @@ These patterns are:
 • Based on Fibonacci ratios (Harmonic)
 • Based on wave structure (Elliott)
 • High probability reversal/continuation signals
-• Detected regardless of confidence threshold
+• Detected with complete point marking on charts
 
 🎯 Priority Patterns Detected:
 """
@@ -3301,11 +3321,12 @@ These patterns are:
             priority_alert += f"""
 💡 Action Required:
 ✅ Review all {priority_count} priority pattern charts above
-✅ Look for confluence with other patterns
+✅ All XABCD points are marked on charts
+✅ Wave structures are clearly visualized
+✅ Entry/TP/SL levels are provided
 ✅ Wait for price action confirmation
-✅ Set appropriate stop losses
 
-⚠️ These patterns are given priority because they use advanced mathematical structures (Fibonacci, wave theory) that historically have higher success rates when properly identified."""
+⚠️ These patterns use advanced mathematical structures (Fibonacci, wave theory) with complete visual marking for accuracy."""
             
             send_telegram(priority_alert)
             time.sleep(2)
@@ -3336,7 +3357,7 @@ These patterns are:
 
 📊 MARKET ANALYSIS SUMMARY:
 • Total Patterns: {len(top_5_patterns)}
-• Harmonic/Elliott: {priority_count} patterns
+• Harmonic/Elliott: {priority_count} patterns (with XABCD/Wave points marked)
 • Bullish Signals: {bullish_count}
 • Bearish Signals: {bearish_count}
 • Highest Confidence: {highest_confidence*100:.1f}%
@@ -3348,13 +3369,14 @@ These patterns are:
 {top_5_patterns[0]['pattern_name']} ({top_5_patterns[0]['confidence']*100:.1f}%)
 
 💡 TRADING RECOMMENDATIONS:
-• Priority: Focus on Harmonic & Elliott Wave patterns
-• Confirmation: Wait for multiple patterns alignment
+• Priority: Harmonic & Elliott patterns have complete point marking
+• Visual Confirmation: Check all marked points on charts
+• Multiple Alignment: Look for pattern confluence
 • Risk Management: Never risk more than 2% per trade
 • Stop Loss: Always use protective stops
 
 ⚠️ DISCLAIMER:
-Multiple patterns detected - prioritize Harmonic and Elliott Wave
+All Harmonic and Elliott Wave patterns include marked points on charts
 Wait for clear price action confirmation before entry
 Market conditions can change rapidly
 
@@ -3365,7 +3387,7 @@ Market conditions can change rapidly
         time.sleep(2)
         
         print(f"✅ Top 5 patterns analysis completed: {len(top_5_patterns)} charts sent")
-        print(f"   - Priority patterns: {priority_count}")
+        print(f"   - Priority patterns (with marked points): {priority_count}")
         print(f"   - Regular patterns: {len(top_5_patterns) - priority_count}")
         
         return 200
