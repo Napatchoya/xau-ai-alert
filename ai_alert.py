@@ -2333,10 +2333,12 @@ def create_mock_harmonic_pattern(df, pattern_type):
         highs = df['high'].values
         lows = df['low'].values
         
-        # ใช้ indices สัมพัทธ์กับ df ที่ส่งเข้ามา
+        # ✅ ใช้ indices จริงจาก df
         total_len = len(df)
         
-        # สร้างจุด XABCD จากข้อมูลจริง
+        print(f"🔧 Creating mock {pattern_type}: total_len={total_len}")
+        
+        # สร้างจุด XABCD จาก swing points จริง
         swing_highs = []
         swing_lows = []
         
@@ -2354,7 +2356,15 @@ def create_mock_harmonic_pattern(df, pattern_type):
         all_swings.sort(key=lambda x: x[0])
         
         if len(all_swings) >= 5:
-            selected = all_swings[-5:]
+            # ✅ เลือก swing points ที่กระจายดี
+            step = len(all_swings) // 5
+            selected = [
+                all_swings[step * 0],
+                all_swings[step * 1],
+                all_swings[step * 2],
+                all_swings[step * 3],
+                all_swings[step * 4]
+            ]
             
             points = {
                 'X': (selected[0][0], selected[0][1], 'swing'),
@@ -2363,8 +2373,13 @@ def create_mock_harmonic_pattern(df, pattern_type):
                 'C': (selected[3][0], selected[3][1], 'swing'),
                 'D': (selected[4][0], selected[4][1], 'swing')
             }
+            
+            print(f"✅ Mock points created:")
+            for name, (idx, price, _) in points.items():
+                print(f"  {name}: idx={idx}, price={price:.2f}")
         else:
-            # Fallback: ใช้ตำแหน่งสุดท้าย
+            # Fallback
+            print(f"⚠️ Not enough swings, using fallback")
             points = {
                 'X': (total_len - 40, float(df['low'].iloc[-40]), 'low'),
                 'A': (total_len - 30, float(df['high'].iloc[-30]), 'high'),
@@ -2382,7 +2397,9 @@ def create_mock_harmonic_pattern(df, pattern_type):
         }
         
     except Exception as e:
-        print(f"Mock harmonic error: {e}")
+        print(f"❌ Mock harmonic error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             'pattern_id': 0,
             'pattern_name': 'NO_PATTERN',
