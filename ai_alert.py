@@ -264,6 +264,234 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
         import traceback
         traceback.print_exc()
 
+def draw_candlestick_pattern_markers(ax, df, pattern_name):
+    """วาด markers สำหรับ Candlestick patterns ทั้งหมด"""
+    try:
+        if len(df) < 1:
+            return
+        
+        last_idx = len(df) - 1
+        last_candle = df.iloc[-1]
+        
+        # กำหนดสีและ emoji สำหรับแต่ละ pattern
+        pattern_styles = {
+            # Single Candlestick
+            'DOJI': {'color': '#ffff00', 'marker': '*', 'size': 250, 'emoji': '⭐', 'label': 'DOJI'},
+            'HAMMER': {'color': '#00ff88', 'marker': '^', 'size': 250, 'emoji': '🔨', 'label': 'HAMMER'},
+            'SHOOTING_STAR': {'color': '#ff4444', 'marker': 'v', 'size': 250, 'emoji': '💫', 'label': 'SHOOTING STAR'},
+            'HANGING_MAN': {'color': '#ff6600', 'marker': 'v', 'size': 250, 'emoji': '👨', 'label': 'HANGING MAN'},
+            'INVERTED_HAMMER': {'color': '#00ffff', 'marker': '^', 'size': 250, 'emoji': '🔨', 'label': 'INV HAMMER'},
+            'MARUBOZU': {'color': '#ff00ff', 'marker': 's', 'size': 250, 'emoji': '📊', 'label': 'MARUBOZU'},
+            'SPINNING_TOP': {'color': '#ffaa00', 'marker': 'o', 'size': 250, 'emoji': '🌀', 'label': 'SPINNING TOP'},
+            
+            # Two Candlestick
+            'ENGULFING_BULLISH': {'color': '#00ff00', 'marker': 'D', 'size': 280, 'emoji': '🟢', 'label': 'ENGULFING BULL'},
+            'ENGULFING_BEARISH': {'color': '#ff0000', 'marker': 'D', 'size': 280, 'emoji': '🔴', 'label': 'ENGULFING BEAR'},
+            'PIERCING_LINE': {'color': '#00dd88', 'marker': '^', 'size': 280, 'emoji': '⬆️', 'label': 'PIERCING LINE'},
+            'DARK_CLOUD_COVER': {'color': '#dd0088', 'marker': 'v', 'size': 280, 'emoji': '⬇️', 'label': 'DARK CLOUD'},
+            'HARAMI_BULLISH': {'color': '#88ff88', 'marker': 'p', 'size': 280, 'emoji': '🤰', 'label': 'HARAMI BULL'},
+            'HARAMI_BEARISH': {'color': '#ff8888', 'marker': 'p', 'size': 280, 'emoji': '🤰', 'label': 'HARAMI BEAR'},
+            'TWEEZER_TOP': {'color': '#ff66ff', 'marker': 'X', 'size': 280, 'emoji': '🔝', 'label': 'TWEEZER TOP'},
+            'TWEEZER_BOTTOM': {'color': '#66ff66', 'marker': 'X', 'size': 280, 'emoji': '🔻', 'label': 'TWEEZER BOT'},
+            
+            # Three Candlestick
+            'MORNING_STAR': {'color': '#ffff00', 'marker': '*', 'size': 300, 'emoji': '🌟', 'label': 'MORNING STAR'},
+            'EVENING_STAR': {'color': '#ff00ff', 'marker': '*', 'size': 300, 'emoji': '🌙', 'label': 'EVENING STAR'},
+            'THREE_WHITE_SOLDIERS': {'color': '#00ff00', 'marker': '^', 'size': 300, 'emoji': '⚔️', 'label': '3 SOLDIERS'},
+            'THREE_BLACK_CROWS': {'color': '#000000', 'marker': 'v', 'size': 300, 'emoji': '🦅', 'label': '3 CROWS'}
+        }
+        
+        if pattern_name not in pattern_styles:
+            print(f"⚠️ No style defined for pattern: {pattern_name}")
+            return
+        
+        style = pattern_styles[pattern_name]
+        
+        # กำหนดตำแหน่ง marker
+        y_position = last_candle['high'] if pattern_name in [
+            'SHOOTING_STAR', 'HANGING_MAN', 'EVENING_STAR', 
+            'DARK_CLOUD_COVER', 'TWEEZER_TOP', 'THREE_BLACK_CROWS',
+            'ENGULFING_BEARISH', 'HARAMI_BEARISH'
+        ] else last_candle['low']
+        
+        # วาด marker หลัก
+        ax.scatter([last_idx], [y_position], 
+                  color=style['color'], 
+                  s=style['size'], 
+                  marker=style['marker'],
+                  label=style['label'], 
+                  zorder=20,
+                  edgecolors='white',
+                  linewidths=3,
+                  alpha=0.95)
+        
+        # เพิ่ม emoji label
+        y_offset = 15 if y_position == last_candle['high'] else -15
+        va = 'bottom' if y_position == last_candle['low'] else 'top'
+        
+        ax.text(last_idx, y_position + y_offset, 
+               f"{style['emoji']} {style['label']}", 
+               ha='center', 
+               va=va, 
+               color=style['color'], 
+               fontweight='bold', 
+               fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='black', 
+                        edgecolor=style['color'],
+                        alpha=0.9, 
+                        linewidth=2))
+        
+        # เพิ่ม info box สำหรับ Two/Three candlestick patterns
+        if pattern_name in ['ENGULFING_BULLISH', 'ENGULFING_BEARISH', 
+                           'PIERCING_LINE', 'DARK_CLOUD_COVER',
+                           'MORNING_STAR', 'EVENING_STAR',
+                           'THREE_WHITE_SOLDIERS', 'THREE_BLACK_CROWS']:
+            draw_candlestick_pattern_info(ax, df, pattern_name)
+        
+        print(f"✅ Candlestick marker drawn: {pattern_name}")
+        
+    except Exception as e:
+        print(f"❌ Candlestick marker error for {pattern_name}: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def draw_candlestick_pattern_info(ax, df, pattern_name):
+    """วาดกล่องข้อมูลเพิ่มเติมสำหรับ Candlestick patterns"""
+    try:
+        if len(df) < 3:
+            return
+        
+        pattern_info = {
+            'ENGULFING_BULLISH': {
+                'candles': 2,
+                'signal': '🟢 Bullish Reversal',
+                'description': 'Large white candle engulfs previous black'
+            },
+            'ENGULFING_BEARISH': {
+                'candles': 2,
+                'signal': '🔴 Bearish Reversal',
+                'description': 'Large black candle engulfs previous white'
+            },
+            'PIERCING_LINE': {
+                'candles': 2,
+                'signal': '🟢 Bullish Reversal',
+                'description': 'White candle closes above midpoint'
+            },
+            'DARK_CLOUD_COVER': {
+                'candles': 2,
+                'signal': '🔴 Bearish Reversal',
+                'description': 'Black candle opens above, closes below midpoint'
+            },
+            'MORNING_STAR': {
+                'candles': 3,
+                'signal': '🟢 Strong Bullish Reversal',
+                'description': 'Black → Small → Large White'
+            },
+            'EVENING_STAR': {
+                'candles': 3,
+                'signal': '🔴 Strong Bearish Reversal',
+                'description': 'White → Small → Large Black'
+            },
+            'THREE_WHITE_SOLDIERS': {
+                'candles': 3,
+                'signal': '🟢 Strong Bullish Continuation',
+                'description': 'Three consecutive rising white candles'
+            },
+            'THREE_BLACK_CROWS': {
+                'candles': 3,
+                'signal': '🔴 Strong Bearish Continuation',
+                'description': 'Three consecutive falling black candles'
+            }
+        }
+        
+        if pattern_name not in pattern_info:
+            return
+        
+        info = pattern_info[pattern_name]
+        last_idx = len(df) - 1
+        
+        # สร้างกล่องข้อมูล
+        info_text = f"{info['signal']}\n{info['description']}\nCandles: {info['candles']}"
+        
+        # วางกล่องที่มุมขวาบน
+        ax.text(0.98, 0.85, info_text,
+               transform=ax.transAxes,
+               verticalalignment='top',
+               horizontalalignment='right',
+               color='white',
+               fontsize=9,
+               bbox=dict(boxstyle='round,pad=0.7', 
+                        facecolor='#1a1a1a', 
+                        edgecolor='#ffaa00',
+                        alpha=0.95, 
+                        linewidth=2))
+        
+    except Exception as e:
+        print(f"❌ Pattern info box error: {e}")
+
+
+def draw_two_candlestick_highlight(ax, df):
+    """Highlight 2 แท่งเทียนล่าสุดสำหรับ Two-Candlestick patterns"""
+    try:
+        if len(df) < 2:
+            return
+        
+        last_idx = len(df) - 1
+        
+        # วาดกรอบรอบ 2 แท่งล่าสุด
+        first_candle = df.iloc[-2]
+        second_candle = df.iloc[-1]
+        
+        box_high = max(first_candle['high'], second_candle['high'])
+        box_low = min(first_candle['low'], second_candle['low'])
+        
+        # วาดกรอบสีเหลือง
+        rect = patches.Rectangle((last_idx - 1.5, box_low), 
+                                 2, 
+                                 box_high - box_low,
+                                 linewidth=2, 
+                                 edgecolor='#ffaa00', 
+                                 facecolor='none',
+                                 linestyle='--',
+                                 alpha=0.8,
+                                 zorder=15)
+        ax.add_patch(rect)
+        
+    except Exception as e:
+        print(f"❌ Two candlestick highlight error: {e}")
+
+
+def draw_three_candlestick_highlight(ax, df):
+    """Highlight 3 แท่งเทียนล่าสุดสำหรับ Three-Candlestick patterns"""
+    try:
+        if len(df) < 3:
+            return
+        
+        last_idx = len(df) - 1
+        
+        # วาดกรอบรอบ 3 แท่งล่าสุด
+        candles = df.iloc[-3:]
+        
+        box_high = candles['high'].max()
+        box_low = candles['low'].min()
+        
+        # วาดกรอบสีชมพู
+        rect = patches.Rectangle((last_idx - 2.5, box_low), 
+                                 3, 
+                                 box_high - box_low,
+                                 linewidth=2, 
+                                 edgecolor='#ff00ff', 
+                                 facecolor='none',
+                                 linestyle='-',
+                                 alpha=0.8,
+                                 zorder=15)
+        ax.add_patch(rect)
+        
+    except Exception as e:
+        print(f"❌ Three candlestick highlight error: {e}")
+
 def create_candlestick_chart(df, trading_signals, pattern_info):
     """Create candlestick chart with pattern lines and trading levels"""
     try:
