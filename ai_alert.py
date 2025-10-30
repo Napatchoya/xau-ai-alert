@@ -6019,71 +6019,71 @@ class AdvancedPatternDetector:
             return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 'confidence': 0.30, 'method': 'SINGLE_ERROR'}
 
     def detect_two_candlestick(self, candles):
-    """Detect two-candlestick patterns - ENHANCED VERSION"""
-    try:
-        first = candles.iloc[0]
-        second = candles.iloc[1]
+        """Detect two-candlestick patterns - ENHANCED VERSION"""
+        try:
+            first = candles.iloc[0]
+            second = candles.iloc[1]
         
-        first_body = abs(first['close'] - first['open'])
-        second_body = abs(second['close'] - second['open'])
+            first_body = abs(first['close'] - first['open'])
+            second_body = abs(second['close'] - second['open'])
         
-        # 🟢 ENGULFING BULLISH - เงื่อนไขผ่อนปรนกว่าเดิม
-        if (first['close'] < first['open'] and  # แท่งแรกดำ
-            second['close'] > second['open'] and  # แท่งสองขาว
-            second['open'] <= first['close'] and  # เปิดใกล้หรือต่ำกว่าปิดแท่งแรก
-            second['close'] >= first['open'] and  # ปิดสูงกว่าหรือเท่ากับเปิดแท่งแรก
-            second_body > first_body * 0.8):  # ⬅️ ลดจาก 1.1 เป็น 0.8
-            return {'pattern_id': 23, 'pattern_name': 'ENGULFING_BULLISH', 
-                   'confidence': 0.85, 'method': 'TWO_CANDLESTICK'}
+            # 🟢 ENGULFING BULLISH - เงื่อนไขผ่อนปรนกว่าเดิม
+            if (first['close'] < first['open'] and  # แท่งแรกดำ
+                second['close'] > second['open'] and  # แท่งสองขาว
+                second['open'] <= first['close'] and  # เปิดใกล้หรือต่ำกว่าปิดแท่งแรก
+                second['close'] >= first['open'] and  # ปิดสูงกว่าหรือเท่ากับเปิดแท่งแรก
+                second_body > first_body * 0.8):  # ⬅️ ลดจาก 1.1 เป็น 0.8
+                return {'pattern_id': 23, 'pattern_name': 'ENGULFING_BULLISH', 
+                       'confidence': 0.85, 'method': 'TWO_CANDLESTICK'}
         
-        # 🔴 ENGULFING BEARISH - เงื่อนไขผ่อนปรนกว่าเดิม
-        if (first['close'] > first['open'] and  # แท่งแรกขาว
-            second['close'] < second['open'] and  # แท่งสองดำ
-            second['open'] >= first['close'] and  # เปิดใกล้หรือสูงกว่าปิดแท่งแรก
-            second['close'] <= first['open'] and  # ปิดต่ำกว่าหรือเท่ากับเปิดแท่งแรก
-            second_body > first_body * 0.8):  # ⬅️ ลดจาก 1.1 เป็น 0.8
-            return {'pattern_id': 24, 'pattern_name': 'ENGULFING_BEARISH', 
-                   'confidence': 0.85, 'method': 'TWO_CANDLESTICK'}
+            # 🔴 ENGULFING BEARISH - เงื่อนไขผ่อนปรนกว่าเดิม
+            if (first['close'] > first['open'] and  # แท่งแรกขาว
+                second['close'] < second['open'] and  # แท่งสองดำ
+                second['open'] >= first['close'] and  # เปิดใกล้หรือสูงกว่าปิดแท่งแรก
+                second['close'] <= first['open'] and  # ปิดต่ำกว่าหรือเท่ากับเปิดแท่งแรก
+                second_body > first_body * 0.8):  # ⬅️ ลดจาก 1.1 เป็น 0.8
+                return {'pattern_id': 24, 'pattern_name': 'ENGULFING_BEARISH', 
+                       'confidence': 0.85, 'method': 'TWO_CANDLESTICK'}
         
-        # 🟢 PIERCING LINE - เงื่อนไขผ่อนปรนกว่าเดิม
-        first_midpoint = (first['open'] + first['close']) / 2
-        if (first['close'] < first['open'] and  # แท่งแรกดำ
-            second['close'] > second['open'] and  # แท่งสองขาว
-            second['open'] < first['low'] * 1.002 and  # ⬅️ ผ่อนปรนเปิดต่ำกว่า low เล็กน้อย
-            second['close'] > first_midpoint * 0.98):  # ⬅️ ผ่อนปรนปิดใกล้ midpoint
-            return {'pattern_id': 25, 'pattern_name': 'PIERCING_LINE', 
-                   'confidence': 0.80, 'method': 'TWO_CANDLESTICK'}
+            # 🟢 PIERCING LINE - เงื่อนไขผ่อนปรนกว่าเดิม
+            first_midpoint = (first['open'] + first['close']) / 2
+            if (first['close'] < first['open'] and  # แท่งแรกดำ
+                second['close'] > second['open'] and  # แท่งสองขาว
+                second['open'] < first['low'] * 1.002 and  # ⬅️ ผ่อนปรนเปิดต่ำกว่า low เล็กน้อย
+                second['close'] > first_midpoint * 0.98):  # ⬅️ ผ่อนปรนปิดใกล้ midpoint
+                return {'pattern_id': 25, 'pattern_name': 'PIERCING_LINE', 
+                       'confidence': 0.80, 'method': 'TWO_CANDLESTICK'}
         
-        # 🔴 DARK CLOUD COVER - เงื่อนไขผ่อนปรนกว่าเดิม
-        if (first['close'] > first['open'] and  # แท่งแรกขาว
-            second['close'] < second['open'] and  # แท่งสองดำ
-            second['open'] > first['high'] * 0.998 and  # ⬅️ ผ่อนปรนเปิดสูงกว่า high เล็กน้อย
-            second['close'] < first_midpoint * 1.02):  # ⬅️ ผ่อนปรนปิดใกล้ midpoint
-            return {'pattern_id': 26, 'pattern_name': 'DARK_CLOUD_COVER', 
-                   'confidence': 0.80, 'method': 'TWO_CANDLESTICK'}
+            # 🔴 DARK CLOUD COVER - เงื่อนไขผ่อนปรนกว่าเดิม
+            if (first['close'] > first['open'] and  # แท่งแรกขาว
+                second['close'] < second['open'] and  # แท่งสองดำ
+                second['open'] > first['high'] * 0.998 and  # ⬅️ ผ่อนปรนเปิดสูงกว่า high เล็กน้อย
+                second['close'] < first_midpoint * 1.02):  # ⬅️ ผ่อนปรนปิดใกล้ midpoint
+                return {'pattern_id': 26, 'pattern_name': 'DARK_CLOUD_COVER', 
+                       'confidence': 0.80, 'method': 'TWO_CANDLESTICK'}
         
-        # ส่วนอื่นๆ เหมือนเดิม...
-        # HARAMI_BULLISH
-        if (first['close'] < first['open'] and second['close'] > second['open'] and
-            second['open'] > first['close'] and second['close'] < first['open'] and
-            second_body < first_body * 0.6):
-            return {'pattern_id': 31, 'pattern_name': 'HARAMI_BULLISH', 
-                   'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
+            # ส่วนอื่นๆ เหมือนเดิม...
+            # HARAMI_BULLISH
+            if (first['close'] < first['open'] and second['close'] > second['open'] and
+                second['open'] > first['close'] and second['close'] < first['open'] and
+                second_body < first_body * 0.6):
+                return {'pattern_id': 31, 'pattern_name': 'HARAMI_BULLISH', 
+                       'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
         
-        # HARAMI_BEARISH
-        if (first['close'] > first['open'] and second['close'] < second['open'] and
-            second['open'] < first['close'] and second['close'] > first['open'] and
-            second_body < first_body * 0.6):
-            return {'pattern_id': 32, 'pattern_name': 'HARAMI_BEARISH', 
-                   'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
+            # HARAMI_BEARISH
+            if (first['close'] > first['open'] and second['close'] < second['open'] and
+                second['open'] < first['close'] and second['close'] > first['open'] and
+                second_body < first_body * 0.6):
+                return {'pattern_id': 32, 'pattern_name': 'HARAMI_BEARISH', 
+                       'confidence': 0.70, 'method': 'TWO_CANDLESTICK'}
         
-        return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 
-               'confidence': 0.50, 'method': 'NO_TWO_PATTERN'}
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 
+                   'confidence': 0.50, 'method': 'NO_TWO_PATTERN'}
         
-    except Exception as e:
-        print(f"Two candlestick error: {e}")
-        return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 
-               'confidence': 0.30, 'method': 'TWO_ERROR'}
+        except Exception as e:
+            print(f"Two candlestick error: {e}")
+            return {'pattern_id': 0, 'pattern_name': 'NO_PATTERN', 
+                   'confidence': 0.30, 'method': 'TWO_ERROR'}
 
     def detect_three_candlestick(self, candles):
         """Detect three-candlestick patterns"""
