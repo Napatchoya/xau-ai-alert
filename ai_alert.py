@@ -233,28 +233,30 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
         elif pattern_name == 'DIAMOND':
             draw_diamond_on_chart(ax, df)
         
-        # Additional pattern support (if functions exist)
-        elif pattern_name == 'DOJI':
-            # Doji is a single candlestick - mark on chart differently
-            if len(df) > 0:
-                last_candle = df.iloc[-1]
-                ax.scatter([len(df)-1], [last_candle['close']], 
-                          color='#ffff00', s=200, marker='*', 
-                          label='DOJI', zorder=15)
-        
-        elif pattern_name == 'HAMMER':
-            if len(df) > 0:
-                last_candle = df.iloc[-1]
-                ax.scatter([len(df)-1], [last_candle['low']], 
-                          color='#00ff88', s=200, marker='^', 
-                          label='HAMMER', zorder=15)
-        
-        elif pattern_name == 'SHOOTING_STAR':
-            if len(df) > 0:
-                last_candle = df.iloc[-1]
-                ax.scatter([len(df)-1], [last_candle['high']], 
-                          color='#ff4444', s=200, marker='v', 
-                          label='SHOOTING STAR', zorder=15)
+        # 🆕 Candlestick Patterns - ใช้ฟังก์ชันใหม่
+        elif pattern_name in [
+            'DOJI', 'HAMMER', 'SHOOTING_STAR', 'HANGING_MAN', 
+            'INVERTED_HAMMER', 'MARUBOZU', 'SPINNING_TOP',
+            'ENGULFING_BULLISH', 'ENGULFING_BEARISH',
+            'PIERCING_LINE', 'DARK_CLOUD_COVER',
+            'HARAMI_BULLISH', 'HARAMI_BEARISH',
+            'TWEEZER_TOP', 'TWEEZER_BOTTOM',
+            'MORNING_STAR', 'EVENING_STAR',
+            'THREE_WHITE_SOLDIERS', 'THREE_BLACK_CROWS'
+        ]:
+            # วาด marker
+            draw_candlestick_pattern_markers(ax, df, pattern_name)
+            
+            # Highlight candles ตามจำนวน
+            if pattern_name in ['ENGULFING_BULLISH', 'ENGULFING_BEARISH',
+                               'PIERCING_LINE', 'DARK_CLOUD_COVER',
+                               'HARAMI_BULLISH', 'HARAMI_BEARISH',
+                               'TWEEZER_TOP', 'TWEEZER_BOTTOM']:
+                draw_two_candlestick_highlight(ax, df)
+            
+            elif pattern_name in ['MORNING_STAR', 'EVENING_STAR',
+                                 'THREE_WHITE_SOLDIERS', 'THREE_BLACK_CROWS']:
+                draw_three_candlestick_highlight(ax, df)
         
         else:
             print(f"⚠️ No specific drawing function for pattern: {pattern_name}")
