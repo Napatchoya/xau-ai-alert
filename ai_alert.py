@@ -2044,49 +2044,82 @@ def draw_harmonic_on_chart(ax, df, points, pattern_name):
         
         # 🎯 คำนวณและแสดง Fibonacci Ratios
         if len(valid_points) >= 5:  # XABCD complete
-            X, A, B, C, D = valid_points[:5]
+            X, A, B, C, D = valid_points[0], valid_points[1], valid_points[2], valid_points[3], valid_points[4]
             
+            # คำนวณ Fibonacci Ratios
             XA = abs(A['price'] - X['price'])
             AB = abs(B['price'] - A['price'])
             BC = abs(C['price'] - B['price'])
             CD = abs(D['price'] - C['price'])
-            AD = abs(D['price'] - A['price'])
             
-            # แสดง ratios บนกราฟ
-            ratio_text = f"""🦋 {pattern_name} RATIOS:
-AB/XA = {(AB/XA):.3f}
-BC/AB = {(BC/AB):.3f} 
-CD/BC = {(CD/BC):.3f}
-AD/XA = {(AD/XA):.3f}"""
+            # Ratios
+            AB_XA_ratio = (AB / XA) if XA != 0 else 0
+            BC_AB_ratio = (BC / AB) if AB != 0 else 0
+            CD_BC_ratio = (CD / BC) if BC != 0 else 0
+            AD_XA_ratio = (abs(D['price'] - A['price']) / XA) if XA != 0 else 0
             
-            ax.text(0.02, 0.98, ratio_text.strip(), 
+            # 📊 แสดง Ratios บนกราฟ
+            ratio_text = f"📐 Fibonacci Ratios:\n"
+            ratio_text += f"AB/XA: {AB_XA_ratio:.3f}\n"
+            ratio_text += f"BC/AB: {BC_AB_ratio:.3f}\n"
+            ratio_text += f"CD/BC: {CD_BC_ratio:.3f}\n"
+            ratio_text += f"AD/XA: {AD_XA_ratio:.3f}"
+            
+            # วางข้อความที่มุมขวาบน
+            ax.text(0.98, 0.98, ratio_text,
                    transform=ax.transAxes,
                    verticalalignment='top',
-                   color='#ffff00', fontsize=10,
+                   horizontalalignment='right',
+                   color='#00ffff',
+                   fontsize=10,
                    fontweight='bold',
                    bbox=dict(boxstyle='round,pad=0.8', 
-                            facecolor='#1a1a1a', 
-                            edgecolor='#ffff00',
-                            alpha=0.95, linewidth=2))
+                            facecolor='black', 
+                            edgecolor='#00ffff',
+                            alpha=0.95, 
+                            linewidth=2))
             
-            # 🎯 วาด PRZ (Potential Reversal Zone)
-            prz_upper = D['price'] * 1.002
-            prz_lower = D['price'] * 0.998
+            # 🎯 คำนวณ PRZ (Potential Reversal Zone)
+            prz_range = CD * 0.1  # 10% ของขา CD
+            prz_high = D['price'] + prz_range
+            prz_low = D['price'] - prz_range
             
-            ax.axhspan(prz_lower, prz_upper, 
-                      alpha=0.2, color='#ff00ff', 
-                      label='PRZ Zone', zorder=5)
+            # วาดเขต PRZ
+            ax.axhspan(prz_low, prz_high, 
+                      alpha=0.2, 
+                      color='#ff00ff', 
+                      zorder=5,
+                      label='PRZ (Reversal Zone)')
             
-            ax.text(chart_df_length - 3, D['price'], 
-                   '🎯 PRZ\nEntry', 
-                   ha='right', va='center',
-                   color='#ff00ff', fontweight='bold', fontsize=12,
+            ax.text(D['idx'] + 2, D['price'], 
+                   '🎯 PRZ', 
+                   ha='left', va='center',
+                   color='#ff00ff', 
+                   fontweight='bold', fontsize=12,
                    bbox=dict(boxstyle='round,pad=0.5', 
                             facecolor='black', 
                             edgecolor='#ff00ff',
                             alpha=0.95, linewidth=2))
+            
+            print(f"✅ Fibonacci Ratios calculated: AB/XA={AB_XA_ratio:.3f}, BC/AB={BC_AB_ratio:.3f}, CD/BC={CD_BC_ratio:.3f}")
         
-        print(f"✅ {pattern_name} Harmonic drawn successfully!")
+        # 🏷️ แสดงชื่อ Pattern
+        pattern_label_x = valid_points[len(valid_points)//2]['idx']
+        pattern_label_y = sum([p['price'] for p in valid_points]) / len(valid_points)
+        
+        ax.text(pattern_label_x, pattern_label_y, 
+               f'✨ {pattern_name} ✨', 
+               ha='center', va='center',
+               color='#ff00ff', 
+               fontweight='bold', 
+               fontsize=15,
+               bbox=dict(boxstyle='round,pad=0.8', 
+                        facecolor='black', 
+                        edgecolor='#ff00ff',
+                        alpha=0.95, 
+                        linewidth=3))
+        
+        print(f"✅ Harmonic pattern {pattern_name} drawn successfully with {len(valid_points)} points")
         
     except Exception as e:
         print(f"❌ Draw Harmonic error: {e}")
