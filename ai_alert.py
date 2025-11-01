@@ -2474,98 +2474,161 @@ W3/W1: {(wave3/wave1):.2f}x"""
 def draw_ascending_triangle_on_chart(ax, df):
     """วาด Ascending Triangle บนกราฟ - Bullish Pattern"""
     try:
+        import numpy as np  # ✅ เพิ่ม import
+        
         highs = df['high'].values
         lows = df['low'].values
         
-        if len(highs) < 30:
+        if len(highs) < 20:
             print("⚠️ Not enough data for Ascending Triangle")
             return
         
-        # หาจุดสูงและต่ำ
+        # 🔍 หาจุดสูงและต่ำด้วยวิธีที่ง่ายกว่า
+        lookback = min(30, len(highs) - 5)  # ใช้ช่วงที่มีข้อมูล
+        
         high_points = []
         low_points = []
         
-        # ใช้ sliding window หาจุด swing high/low
-        for i in range(5, len(highs) - 5):
+        # หาจุด swing high/low ด้วย window ที่เล็กกว่า
+        window = 3  # ลดจาก 5 เป็น 3 เพื่อหาจุดได้มากขึ้น
+        
+        for i in range(window, len(highs) - window):
             # Swing high
-            if all(highs[i] >= highs[i-j] for j in range(1, 6)) and \
-               all(highs[i] >= highs[i+j] for j in range(1, 6)):
+            if highs[i] == max(highs[i-window:i+window+1]):
                 high_points.append((i, highs[i]))
             
             # Swing low
-            if all(lows[i] <= lows[i-j] for j in range(1, 6)) and \
-               all(lows[i] <= lows[i+j] for j in range(1, 6)):
+            if lows[i] == min(lows[i-window:i+window+1]):
                 low_points.append((i, lows[i]))
         
+        print(f"🔍 Found {len(high_points)} highs, {len(low_points)} lows")
+        
         if len(high_points) < 2 or len(low_points) < 2:
-            print(f"⚠️ Not enough swing points (highs={len(high_points)}, lows={len(low_points)})")
+            print(f"⚠️ Not enough swing points for Ascending Triangle")
             return
         
-        # เอาจุดล่าสุด
-        recent_highs = high_points[-3:] if len(high_points) >= 3 else high_points[-2:]
-        recent_lows = low_points[-3:] if len(low_points) >= 3 else low_points[-2:]
+        # เอาจุดล่าสุดที่มีนัยสำคัญ
+        recent_highs = high_points[-4:] if len(high_points) >= 4 else high_points[-2:]
+        recent_lows = low_points[-4:] if len(low_points) >= 4 else low_points[-2:]
+        
+        print(f"📊 Using {len(recent_highs)} highs, {len(recent_lows)} lows for pattern")
         
         # 🔴 วาดเส้น Horizontal Resistance (เส้นราบด้านบน)
         if len(recent_highs) >= 2:
             # คำนวณระดับ resistance (ค่าเฉลี่ยของจุดสูง)
-            resistance_level = np.mean([h[1] for h in recent_highs])
+            resistance_prices = [h[1] for h in recent_highs]
+            resistance_level = np.mean(resistance_prices)
             
-            # ตรวจสอบว่าจุดสูงอยู่ในระดับใกล้เคียงกัน (horizontal)
-            high_std = np.std([h[1] for h in recent_highs])
-            if high_std > resistance_level * 0.02:  # ความแปรปรวนต้องไม่เกิน 2%
-                print(f"⚠️ Highs not horizontal enough (std={high_std:.2f})")
-                return
+            # ✅ ผ่อนปรนเงื่อนไข - ให้แปรปรวนได้มากขึ้น
+            high_std = np.std(resistance_prices)
+            high_range = max(resistance_prices) - min(resistance_prices)
+            
+            print(f"📈 Resistance level: {resistance_level:.2f}, range: {high_range:.2f} ({high_range/resistance_level*100:.2f}%)")
+            
+            if high_range > resistance_level * 0.03:  # เพิ่มจาก 0.02 เป็น 0.03 (3%)
+                print(f"⚠️ Highs not horizontal enough (range={high_range:.2f}, {high_range/resistance_level*100:.1f}%)")
+                # ไม่ return - ลองวาดต่อไป
             
             # หาช่วงเวลาของ resistance line
             first_high_idx = recent_highs[0][0]
             last_high_idx = recent_highs[-1][0]
             
-            # วาดเส้น Resistance
+            # วาดเส้น Resistance แนวราบ
             ax.axhline(y=resistance_level, 
                       xmin=first_high_idx/len(df), 
-                      xmax=(len(df)-1)/len(df),
+                      xmax=1.0,  # ✅ ขยายไปจนสุดกราฟ
                       color='#ff4444', linestyle='-', linewidth=3,
                       alpha=0.9, label=f'Resistance: ${resistance_level:.2f}', 
                       zorder=10)
             
             # วาดจุด Resistance touches
             for idx, price in recent_highs:
-                ax.scatter([idx], [price], color='#ff4444', s=180, 
-                          marker='_', edgecolors='white', linewidths=3, zorder=15)
+                ax.scatter([idx], [resistance_level], color='#ff4444', s=200,  # ✅ ใช้ resistance_level แทน price
+                          marker='v', edgecolors='white', linewidths=3, zorder=15)
                 
-                ax.text(idx, price + 8, '🔴', 
-                       ha='center', va='bottom', fontsize=20, zorder=16)
-        
-        # 🟢 วาดเส้น Ascending Support (เส้นขาขึ้นด้านล่าง)
-        if len(recent_lows) >= 2:
-            l1, l2 = recent_lows[0], recent_lows[-1]
+                ax.text(idx, resistance_level + 5, '🔴', 
+                       ha='center', va='bottom', fontsize=16, zorder=16)
             
-            # ตรวจสอบว่าเป็นแนวขาขึ้น
-            if l2[1] <= l1[1]:
-                print("⚠️ Support is not ascending")
+            print(f"✅ Drew Resistance line at {resistance_level:.2f}")
+        else:
+            print("⚠️ Not enough high points for Resistance")
+            return
+        
+        # 🟢 วาดเส้น Ascending Support (เส้นขาขึ้นด้านล่าง) - KEY FIX HERE
+        if len(recent_lows) >= 2:
+            # ✅ เรียงจุดต่ำตามเวลา
+            sorted_lows = sorted(recent_lows, key=lambda x: x[0])
+            
+            # เอา 2-3 จุดที่ไม่ซ้ำกัน
+            unique_lows = []
+            for idx, price in sorted_lows:
+                if not unique_lows or idx - unique_lows[-1][0] > 3:  # ห่างกันอย่างน้อย 3 bars
+                    unique_lows.append((idx, price))
+            
+            if len(unique_lows) < 2:
+                print("⚠️ Not enough distinct low points")
                 return
             
-            # วาดเส้นแนวโน้มขาขึ้น
-            ax.plot([l1[0], l2[0]], [l1[1], l2[1]], 
-                   color='#00ff88', linestyle='-', linewidth=3,
-                   alpha=0.9, label='Ascending Support', zorder=10)
+            l1, l2 = unique_lows[0], unique_lows[-1]  # เอาจุดแรกและจุดสุดท้าย
             
-            # Extend เส้นไปข้างหน้า
+            print(f"📊 Support points: L1=({l1[0]}, {l1[1]:.2f}), L2=({l2[0]}, {l2[1]:.2f})")
+            
+            # ตรวจสอบว่าเป็นแนวขาขึ้นหรือไม่
+            if l2[1] <= l1[1]:
+                print(f"⚠️ Support is not ascending: L1={l1[1]:.2f}, L2={l2[1]:.2f}")
+                # ลองใช้จุดอื่นแทน
+                if len(unique_lows) >= 3:
+                    l1 = unique_lows[-2]
+                    l2 = unique_lows[-1]
+                    print(f"🔄 Trying alternate points: L1=({l1[0]}, {l1[1]:.2f}), L2=({l2[0]}, {l2[1]:.2f})")
+                    if l2[1] <= l1[1]:
+                        print("⚠️ Still not ascending, using best fit line")
+                        # ใช้ linear regression สำหรับ best fit
+                        from scipy import stats
+                        low_indices = [p[0] for p in unique_lows]
+                        low_prices = [p[1] for p in unique_lows]
+                        slope, intercept, _, _, _ = stats.linregress(low_indices, low_prices)
+                        
+                        if slope <= 0:
+                            print("❌ Cannot create ascending support line")
+                            return
+                        
+                        # สร้างจุด l1, l2 จาก regression line
+                        l1 = (unique_lows[0][0], intercept + slope * unique_lows[0][0])
+                        l2 = (unique_lows[-1][0], intercept + slope * unique_lows[-1][0])
+                        print(f"✅ Using regression: slope={slope:.4f}")
+            
+            # ✅ วาดเส้นแนวโน้มขาขึ้น (MAIN LINE)
+            ax.plot([l1[0], l2[0]], [l1[1], l2[1]], 
+                   color='#00ff88', linestyle='-', linewidth=4,  # ✅ เพิ่มความหนา
+                   alpha=1.0, label='Ascending Support', zorder=12)
+            
+            print(f"✅ Drew Ascending Support from ({l1[0]}, {l1[1]:.2f}) to ({l2[0]}, {l2[1]:.2f})")
+            
+            # ✅ Extend เส้นไปข้างหน้า
             slope = (l2[1] - l1[1]) / (l2[0] - l1[0])
             extended_x = len(df) - 1
             extended_y = l2[1] + slope * (extended_x - l2[0])
             
             ax.plot([l2[0], extended_x], [l2[1], extended_y], 
-                   color='#00ff88', linestyle='--', linewidth=2, 
-                   alpha=0.6, zorder=10)
+                   color='#00ff88', linestyle='--', linewidth=2.5, 
+                   alpha=0.8, zorder=12)
+            
+            print(f"✅ Extended support to x={extended_x}, y={extended_y:.2f}")
             
             # วาดจุด Support touches
-            for idx, price in recent_lows:
-                ax.scatter([idx], [price], color='#00ff88', s=180, 
-                          marker='_', edgecolors='white', linewidths=3, zorder=15)
+            for idx, price in unique_lows:
+                # คำนวณตำแหน่งบนเส้น support
+                support_price_at_idx = l1[1] + slope * (idx - l1[0])
                 
-                ax.text(idx, price - 8, '🟢', 
-                       ha='center', va='top', fontsize=20, zorder=16)
+                ax.scatter([idx], [support_price_at_idx], color='#00ff88', s=200, 
+                          marker='^', edgecolors='white', linewidths=3, zorder=15)
+                
+                ax.text(idx, support_price_at_idx - 5, '🟢', 
+                       ha='center', va='top', fontsize=16, zorder=16)
+        else:
+            print("⚠️ Not enough low points for Support")
+            return
         
         # 🎯 คำนวณ Apex และ Breakout Target
         if len(recent_highs) >= 2 and len(recent_lows) >= 2:
@@ -2634,10 +2697,12 @@ def draw_ascending_triangle_on_chart(ax, df):
 def draw_descending_triangle_on_chart(ax, df):
     """วาด Descending Triangle บนกราฟ - Bearish Pattern"""
     try:
+        import numpy as np  # ✅ เพิ่ม import
+        
         highs = df['high'].values
         lows = df['low'].values
         
-        if len(highs) < 30:
+        if len(highs) < 20:
             print("⚠️ Not enough data for Descending Triangle")
             return
         
@@ -2645,66 +2710,103 @@ def draw_descending_triangle_on_chart(ax, df):
         high_points = []
         low_points = []
         
-        for i in range(5, len(highs) - 5):
+        window = 3
+        for i in range(window, len(highs) - window):
             # Swing high
-            if all(highs[i] >= highs[i-j] for j in range(1, 6)) and \
-               all(highs[i] >= highs[i+j] for j in range(1, 6)):
+            if highs[i] == max(highs[i-window:i+window+1]):
                 high_points.append((i, highs[i]))
             
             # Swing low
-            if all(lows[i] <= lows[i-j] for j in range(1, 6)) and \
-               all(lows[i] <= lows[i+j] for j in range(1, 6)):
+            if lows[i] == min(lows[i-window:i+window+1]):
                 low_points.append((i, lows[i]))
         
+        print(f"🔍 Found {len(high_points)} highs, {len(low_points)} lows")
+        
         if len(high_points) < 2 or len(low_points) < 2:
-            print(f"⚠️ Not enough swing points (highs={len(high_points)}, lows={len(low_points)})")
+            print(f"⚠️ Not enough swing points for Descending Triangle")
             return
         
-        recent_highs = high_points[-3:] if len(high_points) >= 3 else high_points[-2:]
-        recent_lows = low_points[-3:] if len(low_points) >= 3 else low_points[-2:]
+        recent_highs = high_points[-4:] if len(high_points) >= 4 else high_points[-2:]
+        recent_lows = low_points[-4:] if len(low_points) >= 4 else low_points[-2:]
+        
+        print(f"📊 Using {len(recent_highs)} highs, {len(recent_lows)} lows for pattern")
         
         # 🟢 วาดเส้น Horizontal Support (เส้นราบด้านล่าง)
         if len(recent_lows) >= 2:
-            support_level = np.mean([l[1] for l in recent_lows])
+            support_prices = [l[1] for l in recent_lows]
+            support_level = np.mean(support_prices)
             
-            # ตรวจสอบว่าจุดต่ำอยู่ในระดับใกล้เคียงกัน (horizontal)
-            low_std = np.std([l[1] for l in recent_lows])
-            if low_std > support_level * 0.02:
-                print(f"⚠️ Lows not horizontal enough (std={low_std:.2f})")
-                return
+            low_range = max(support_prices) - min(support_prices)
+            print(f"📈 Support level: {support_level:.2f}, range: {low_range:.2f} ({low_range/support_level*100:.2f}%)")
+            
+            if low_range > support_level * 0.03:
+                print(f"⚠️ Lows not horizontal enough")
             
             first_low_idx = recent_lows[0][0]
-            last_low_idx = recent_lows[-1][0]
             
             # วาดเส้น Support
             ax.axhline(y=support_level, 
                       xmin=first_low_idx/len(df), 
-                      xmax=(len(df)-1)/len(df),
+                      xmax=1.0,
                       color='#00ff88', linestyle='-', linewidth=3,
                       alpha=0.9, label=f'Support: ${support_level:.2f}', 
                       zorder=10)
             
             # วาดจุด Support touches
             for idx, price in recent_lows:
-                ax.scatter([idx], [price], color='#00ff88', s=180, 
-                          marker='_', edgecolors='white', linewidths=3, zorder=15)
+                ax.scatter([idx], [support_level], color='#00ff88', s=200, 
+                          marker='^', edgecolors='white', linewidths=3, zorder=15)
                 
-                ax.text(idx, price - 8, '🟢', 
-                       ha='center', va='top', fontsize=20, zorder=16)
+                ax.text(idx, support_level - 5, '🟢', 
+                       ha='center', va='top', fontsize=16, zorder=16)
+            
+            print(f"✅ Drew Support line at {support_level:.2f}")
+        else:
+            print("⚠️ Not enough low points for Support")
+            return
         
         # 🔴 วาดเส้น Descending Resistance (เส้นขาลงด้านบน)
         if len(recent_highs) >= 2:
-            h1, h2 = recent_highs[0], recent_highs[-1]
+            sorted_highs = sorted(recent_highs, key=lambda x: x[0])
+            
+            unique_highs = []
+            for idx, price in sorted_highs:
+                if not unique_highs or idx - unique_highs[-1][0] > 3:
+                    unique_highs.append((idx, price))
+            
+            if len(unique_highs) < 2:
+                print("⚠️ Not enough distinct high points")
+                return
+            
+            h1, h2 = unique_highs[0], unique_highs[-1]
+            
+            print(f"📊 Resistance points: H1=({h1[0]}, {h1[1]:.2f}), H2=({h2[0]}, {h2[1]:.2f})")
             
             # ตรวจสอบว่าเป็นแนวขาลง
             if h2[1] >= h1[1]:
-                print("⚠️ Resistance is not descending")
-                return
+                print(f"⚠️ Resistance is not descending")
+                if len(unique_highs) >= 3:
+                    h1 = unique_highs[-2]
+                    h2 = unique_highs[-1]
+                    if h2[1] >= h1[1]:
+                        from scipy import stats
+                        high_indices = [p[0] for p in unique_highs]
+                        high_prices = [p[1] for p in unique_highs]
+                        slope, intercept, _, _, _ = stats.linregress(high_indices, high_prices)
+                        
+                        if slope >= 0:
+                            print("❌ Cannot create descending resistance line")
+                            return
+                        
+                        h1 = (unique_highs[0][0], intercept + slope * unique_highs[0][0])
+                        h2 = (unique_highs[-1][0], intercept + slope * unique_highs[-1][0])
             
             # วาดเส้นแนวโน้มขาลง
             ax.plot([h1[0], h2[0]], [h1[1], h2[1]], 
-                   color='#ff4444', linestyle='-', linewidth=3,
-                   alpha=0.9, label='Descending Resistance', zorder=10)
+                   color='#ff4444', linestyle='-', linewidth=4,
+                   alpha=1.0, label='Descending Resistance', zorder=12)
+            
+            print(f"✅ Drew Descending Resistance from ({h1[0]}, {h1[1]:.2f}) to ({h2[0]}, {h2[1]:.2f})")
             
             # Extend เส้นไปข้างหน้า
             slope = (h2[1] - h1[1]) / (h2[0] - h1[0])
@@ -2712,16 +2814,21 @@ def draw_descending_triangle_on_chart(ax, df):
             extended_y = h2[1] + slope * (extended_x - h2[0])
             
             ax.plot([h2[0], extended_x], [h2[1], extended_y], 
-                   color='#ff4444', linestyle='--', linewidth=2, 
-                   alpha=0.6, zorder=10)
+                   color='#ff4444', linestyle='--', linewidth=2.5, 
+                   alpha=0.8, zorder=12)
             
             # วาดจุด Resistance touches
-            for idx, price in recent_highs:
-                ax.scatter([idx], [price], color='#ff4444', s=180, 
-                          marker='_', edgecolors='white', linewidths=3, zorder=15)
+            for idx, price in unique_highs:
+                resistance_price_at_idx = h1[1] + slope * (idx - h1[0])
                 
-                ax.text(idx, price + 8, '🔴', 
-                       ha='center', va='bottom', fontsize=20, zorder=16)
+                ax.scatter([idx], [resistance_price_at_idx], color='#ff4444', s=200, 
+                          marker='v', edgecolors='white', linewidths=3, zorder=15)
+                
+                ax.text(idx, resistance_price_at_idx + 5, '🔴', 
+                       ha='center', va='bottom', fontsize=16, zorder=16)
+        else:
+            print("⚠️ Not enough high points for Resistance")
+            return
         
         # 🎯 คำนวณ Apex และ Breakdown Target
         if len(recent_highs) >= 2 and len(recent_lows) >= 2:
@@ -2782,7 +2889,7 @@ def draw_descending_triangle_on_chart(ax, df):
     except Exception as e:
         print(f"❌ Draw Descending Triangle error: {e}")
         import traceback
-        traceback.print_exc()                               
+        traceback.print_exc()                           
 
 def draw_pattern_lines(ax, df, pattern_name):
     """Draw pattern-specific lines on chart"""
