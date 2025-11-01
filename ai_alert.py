@@ -2358,64 +2358,131 @@ W3/W1: {(wave3/wave1):.2f}x"""
         import traceback
         traceback.print_exc()
 
+
 def draw_ascending_triangle_on_chart(ax, df):
-    """วาด Ascending Triangle บนกราฟ"""
+    """วาด Ascending Triangle Pattern บนกราฟ - FIXED VERSION"""
     try:
         highs = df['high'].values
         lows = df['low'].values
         
-        # Resistance (horizontal)
-        resistance = np.max(highs[-20:])
+        if len(highs) < 30:
+            print("⚠️ Not enough data for Ascending Triangle")
+            return
+        
+        # 📊 หาแนว Resistance (horizontal - ด้านบน)
+        lookback = 30
+        recent_highs = highs[-lookback:]
+        
+        # Resistance = ค่าเฉลี่ยของจุดสูงสุด
+        resistance_level = np.max(recent_highs)
         resistance_touches = []
         
-        for i in range(len(highs) - 20, len(highs)):
-            if abs(highs[i] - resistance) < resistance * 0.01:
-                resistance_touches.append(i - (len(highs) - len(df)))
+        start_idx = len(highs) - lookback
+        for i in range(len(recent_highs)):
+            actual_idx = start_idx + i
+            if abs(recent_highs[i] - resistance_level) < resistance_level * 0.01:
+                resistance_touches.append(actual_idx)
         
-        # Support (ascending)
+        # 📈 หาจุดต่ำ (swing lows) สำหรับ Ascending Support
         support_points = []
-        for i in range(len(lows) - 20, len(lows) - 5):
-            if i > 0 and i < len(lows) - 1:
-                if lows[i] < lows[i-1] and lows[i] < lows[i+1]:
+        for i in range(len(lows) - lookback, len(lows) - 5):
+            if i > 2 and i < len(lows) - 2:
+                if (lows[i] < lows[i-1] and lows[i] < lows[i+1] and
+                    lows[i] < lows[i-2] and lows[i] < lows[i+2]):
                     support_points.append((i - (len(lows) - len(df)), lows[i]))
         
-        if len(resistance_touches) >= 2 and len(support_points) >= 2:
-            # วาด Resistance line
-            ax.axhline(y=resistance, color='#ff4444', linestyle='-', 
-                      linewidth=3, alpha=0.9, label='Horizontal Resistance')
+        # ตรวจสอบว่ามีจุดต่ำพอสำหรับวาดเส้น
+        if len(resistance_touches) < 2 or len(support_points) < 2:
+            print(f"⚠️ Not enough points (Resistance={len(resistance_touches)}, Support={len(support_points)})")
+            return
+        
+        # เอาจุดต่ำ 3 จุดล่าสุด
+        recent_support = support_points[-3:] if len(support_points) >= 3 else support_points[-2:]
+        
+        # ตรวจสอบว่าเส้นรับขาขึ้นจริง
+        if len(recent_support) >= 2:
+            s1, s2 = recent_support[0], recent_support[-1]
+            slope = (s2[1] - s1[1]) / (s2[0] - s1[0]) if (s2[0] - s1[0]) != 0 else 0
             
-            # วาดจุดสัมผัส Resistance
-            for idx in resistance_touches[:3]:
-                if 0 <= idx < len(df):
-                    ax.scatter([idx], [resistance], color='#ff4444', 
-                              s=150, marker='_', zorder=10, linewidths=3)
-            
-            # วาด Support line (ascending)
-            if len(support_points) >= 2:
-                sp1, sp2 = support_points[0], support_points[-1]
-                ax.plot([sp1[0], sp2[0]], [sp1[1], sp2[1]], 
-                       color='#00ff88', linestyle='-', 
-                       linewidth=3, alpha=0.9, label='Ascending Support')
-                
-                # วาดจุด Support
-                for idx, price in support_points[:3]:
-                    if 0 <= idx < len(df):
-                        ax.scatter([idx], [price], color='#00ff88', 
-                                  s=150, marker='_', zorder=10, linewidths=3)
-            
-            # Label
-            ax.text(len(df) - 5, resistance + 5, 
-                   '🔺 Ascending Triangle', 
-                   ha='right', va='bottom',
-                   color='#ffaa00', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.5', 
-                            facecolor='black', alpha=0.9))
-            
-            print("✅ Ascending Triangle drawn")
-            
+            if slope <= 0:
+                print("⚠️ Not an ascending support (slope negative)")
+                return
+        
+        # 🔴 วาดเส้น Resistance (horizontal)
+        ax.axhline(y=resistance_level, color='#ff4444', linestyle='-', 
+                  linewidth=3, alpha=0.9, label=f'Horizontal Resistance: ${resistance_level:.2f}', 
+                  zorder=10)
+        
+        # วาดจุดสัมผัส Resistance
+        for idx in resistance_touches[:5]:  # แสดงไม่เกิน 5 จุด
+            if 0 <= idx < len(df):
+                ax.scatter([idx], [resistance_level], color='#ff4444', 
+                          s=150, marker='_', linewidths=3, zorder=15)
+        
+        # 🟢 วาดเส้น Ascending Support
+        s1, s2 = recent_support[0], recent_support[-1]
+        
+        # วาดเส้นเชื่อมจุดต่ำ
+        ax.plot([s1[0], s2[0]], [s1[1], s2[1]], 
+               color='#00ff88', linestyle='-', linewidth=3,
+               alpha=0.9, label='Ascending Support', zorder=10)
+        
+        # วาดจุดต่ำทั้งหมด
+        for idx, price in recent_support:
+            if 0 <= idx < len(df):
+                ax.scatter([idx], [price], color='#00ff88', s=150, 
+                          marker='^', edgecolors='white', linewidths=2, zorder=15)
+        
+        # 📝 เพิ่ม Label ที่จุดต่ำ
+        for i, (idx, price) in enumerate(recent_support, 1):
+            if 0 <= idx < len(df):
+                ax.text(idx, price - 5, f'🟢 S{i}', 
+                       ha='center', va='top',
+                       color='#00ff88', fontweight='bold', fontsize=10,
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='black', alpha=0.8))
+        
+        # 📝 Label Resistance
+        ax.text(len(df) - 5, resistance_level + 5, 
+               f'🔴 Resistance\n${resistance_level:.2f}', 
+               ha='right', va='bottom',
+               color='#ff4444', fontweight='bold', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='black', edgecolor='#ff4444',
+                        alpha=0.9, linewidth=2))
+        
+        # 🎯 คำนวณและวาด Breakout Target
+        triangle_height = resistance_level - s1[1]
+        target_price = resistance_level + triangle_height
+        
+        ax.axhline(y=target_price, color='#00ff00', linestyle=':', 
+                  linewidth=2, alpha=0.7, label=f'Breakout Target: ${target_price:.2f}')
+        
+        ax.text(len(df) - 2, target_price, 
+               f'🎯 Target\n${target_price:.2f}', 
+               ha='right', va='center',
+               color='#00ff00', fontweight='bold', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='black', edgecolor='#00ff00',
+                        alpha=0.9, linewidth=2))
+        
+        # 📊 Main Label
+        mid_x = len(df) - 10
+        mid_y = (resistance_level + s2[1]) / 2
+        
+        ax.text(mid_x, mid_y, 
+               '🔺 ASCENDING\nTRIANGLE', 
+               ha='center', va='center',
+               color='#ffaa00', fontweight='bold', fontsize=13,
+               bbox=dict(boxstyle='round,pad=0.6', 
+                        facecolor='black', edgecolor='#ffaa00',
+                        alpha=0.9, linewidth=2))
+        
+        print(f"✅ Ascending Triangle drawn: Resistance=${resistance_level:.2f}, Slope={slope:.5f}")
+        
     except Exception as e:
         print(f"❌ Draw Ascending Triangle error: {e}")
-
+        import traceback
+        traceback.print_exc()
 
 def draw_descending_triangle_on_chart(ax, df):
     """วาด Descending Triangle Pattern บนกราฟ - FIXED VERSION"""
