@@ -2889,7 +2889,7 @@ def draw_descending_triangle_on_chart(ax, df):
     except Exception as e:
         print(f"❌ Draw Descending Triangle error: {e}")
         import traceback
-        traceback.print_exc()                           
+        traceback.print_exc()                       
 
 def draw_pattern_lines(ax, df, pattern_name):
     """Draw pattern-specific lines on chart"""
