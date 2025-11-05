@@ -1630,26 +1630,57 @@ def draw_cup_and_handle_on_chart(ax, df):
         traceback.print_exc()
 
 
-def draw_inverse_head_shoulders_on_chart(ax, df):
-    """วาด Inverse Head & Shoulders Pattern บนกราฟแบบปรับปรุง - มี mark point ชัดเจน"""
+def draw_inverse_head_shoulders_on_chart(ax, chart_df):
+    """วาด Inverse Head & Shoulders Pattern บนกราฟแบบปรับปรุง - มี mark point ชัดเจน
+    
+    Args:
+        ax: matplotlib axis object
+        chart_df: DataFrame ที่ใช้ในการวาดกราฟ (ควรเป็น 50 bars ล่าสุด)
+    """
     try:
-        lows = df['low'].values
-        highs = df['high'].values
+        lows = chart_df['low'].values
+        highs = chart_df['high'].values
         
-        if len(lows) < 30:
-            print("⚠️ Not enough data for Inverse H&S")
+        if len(lows) < 20:
+            print(f"⚠️ Not enough data for Inverse H&S (need 20+, got {len(lows)})")
             return
         
+        # ใช้ mid_point จากข้อมูลที่มีจริง
         mid_point = len(lows) // 2
         
-        # หาจุด Left Shoulder, Head, Right Shoulder (กลับหัว - จุดต่ำ)
-        left_shoulder_idx = max(0, mid_point - 10) + np.argmin(lows[max(0, mid_point-10):mid_point])
-        head_idx = mid_point - 5 + np.argmin(lows[mid_point-5:mid_point+5])
-        right_shoulder_idx = mid_point + np.argmin(lows[mid_point:min(len(lows), mid_point+10)])
+        # หาจุด Left Shoulder, Head, Right Shoulder
+        # ปรับให้เหมาะกับข้อมูลที่มี
+        search_range = min(10, len(lows) // 5)
         
-        ls_price = lows[left_shoulder_idx]
-        head_price = lows[head_idx]
-        rs_price = lows[right_shoulder_idx]
+        # Left Shoulder - หาจุดต่ำในช่วงซ้าย
+        ls_start = max(0, mid_point - search_range)
+        ls_end = mid_point
+        if ls_end > ls_start:
+            left_shoulder_idx = ls_start + np.argmin(lows[ls_start:ls_end])
+            ls_price = lows[left_shoulder_idx]
+        else:
+            print("⚠️ Cannot calculate left shoulder")
+            return
+        
+        # Head - หาจุดต่ำสุดในช่วงกลาง
+        head_start = max(0, mid_point - search_range // 2)
+        head_end = min(len(lows), mid_point + search_range // 2)
+        if head_end > head_start:
+            head_idx = head_start + np.argmin(lows[head_start:head_end])
+            head_price = lows[head_idx]
+        else:
+            print("⚠️ Cannot calculate head")
+            return
+        
+        # Right Shoulder - หาจุดต่ำในช่วงขวา
+        rs_start = mid_point
+        rs_end = min(len(lows), mid_point + search_range)
+        if rs_end > rs_start:
+            right_shoulder_idx = rs_start + np.argmin(lows[rs_start:rs_end])
+            rs_price = lows[right_shoulder_idx]
+        else:
+            print("⚠️ Cannot calculate right shoulder")
+            return
         
         # ตรวจสอบว่า head ต่ำกว่า shoulders
         if not (head_price < ls_price and head_price < rs_price):
