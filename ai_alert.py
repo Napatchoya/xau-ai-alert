@@ -2747,6 +2747,14 @@ def draw_ascending_triangle_on_chart(ax, df):
 
 
 def draw_descending_triangle_on_chart(ax, df):
+    # Use 9:5 aspect ratio for mobile-friendly display
+    fig = plt.figure(figsize=(14.4, 8))  # 9:5 ratio
+    # Adjust grid layout
+    gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 0.1], hspace=0.15)
+    
+    ax1 = fig.add_subplot(gs[0])
+    ax2 = fig.add_subplot(gs[1], sharex=ax1)
+    
     """วาด Descending Triangle บนกราฟ - Bearish Pattern"""
     try:
         import numpy as np  # ✅ เพิ่ม import
