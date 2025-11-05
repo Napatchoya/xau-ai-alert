@@ -2778,11 +2778,12 @@ def draw_ascending_triangle_on_chart(ax, df):
 
 
 def draw_descending_triangle_on_chart(ax, df):
-    # Use 9:5 aspect ratio for mobile-friendly display
-    fig = plt.figure(figsize=(14.4, 8))  # 9:5 ratio
-    # Adjust grid layout
-    gs = fig.add_gridspec(3, 1, height_ratios=[3, 1, 0.1], hspace=0.15)
+    # Create figure with 16:9 ratio and tight layout
+    fig = plt.figure(figsize=(12, 6.75), tight_layout=True)
+    fig.patch.set_facecolor('#1a1a1a')
     
+    # Create subplots with minimal spacing
+    gs = fig.add_gridspec(2, 1, height_ratios=[4, 1], hspace=0.25)
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1], sharex=ax1)
     
