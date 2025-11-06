@@ -180,6 +180,7 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
     try:
         pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
         
+        
         # ✅ Priority: Harmonic Patterns
         if pattern_name in ['GARTLEY', 'BUTTERFLY', 'BAT', 'CRAB']:
             if 'points' in pattern_info and pattern_info['points']:
@@ -227,7 +228,8 @@ def draw_enhanced_pattern_lines(ax, df, pattern_info):
         elif pattern_name == 'CUP_AND_HANDLE':
             draw_cup_and_handle_on_chart(ax, df)
         elif pattern_name == 'INVERSE_HEAD_SHOULDERS':
-            draw_inverse_head_shoulders_on_chart(ax, df)
+            # ✅ ส่ง chart_df แทน df
+            draw_inverse_head_shoulders_on_chart(ax, chart_df)
         elif pattern_name == 'RECTANGLE':
             draw_rectangle_on_chart(ax, df)
         elif pattern_name == 'DIAMOND':
