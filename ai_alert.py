@@ -1633,30 +1633,32 @@ def draw_cup_and_handle_on_chart(ax, df):
 
 
 def draw_inverse_head_shoulders_on_chart(ax, chart_df):
-    """วาด Inverse Head & Shoulders Pattern บนกราฟแบบปรับปรุง - มี mark point ชัดเจน
+    """วาด Inverse Head & Shoulders Pattern แบบแก้ไขใหม่ - ใช้กับ chart_df โดยตรง
     
     Args:
         ax: matplotlib axis object
-        chart_df: DataFrame ที่ใช้ในการวาดกราฟ (ควรเป็น 50 bars ล่าสุด)
+        chart_df: DataFrame ที่แสดงในกราฟ (โดยปกติคือ 50 bars ล่าสุด)
     """
     try:
         lows = chart_df['low'].values
         highs = chart_df['high'].values
         
-        if len(lows) < 20:
-            print(f"⚠️ Not enough data for Inverse H&S (need 20+, got {len(lows)})")
+        chart_length = len(lows)
+        
+        if chart_length < 20:
+            print(f"⚠️ Not enough data for Inverse H&S (need 20+, got {chart_length})")
             return
         
-        # ใช้ mid_point จากข้อมูลที่มีจริง
-        mid_point = len(lows) // 2
+        print(f"🔍 Inverse H&S: Working with {chart_length} candles")
         
-        # หาจุด Left Shoulder, Head, Right Shoulder
-        # ปรับให้เหมาะกับข้อมูลที่มี
-        search_range = min(10, len(lows) // 5)
+        # ใช้ mid_point จากข้อมูลที่แสดงในกราฟ
+        mid_point = chart_length // 2
+        search_range = max(5, min(10, chart_length // 5))
         
-        # Left Shoulder - หาจุดต่ำในช่วงซ้าย
+        # ========== หาจุด Left Shoulder ==========
         ls_start = max(0, mid_point - search_range)
         ls_end = mid_point
+        
         if ls_end > ls_start:
             left_shoulder_idx = ls_start + np.argmin(lows[ls_start:ls_end])
             ls_price = lows[left_shoulder_idx]
@@ -1664,9 +1666,10 @@ def draw_inverse_head_shoulders_on_chart(ax, chart_df):
             print("⚠️ Cannot calculate left shoulder")
             return
         
-        # Head - หาจุดต่ำสุดในช่วงกลาง
+        # ========== หาจุด Head (จุดต่ำสุดในช่วงกลาง) ==========
         head_start = max(0, mid_point - search_range // 2)
-        head_end = min(len(lows), mid_point + search_range // 2)
+        head_end = min(chart_length, mid_point + search_range // 2)
+        
         if head_end > head_start:
             head_idx = head_start + np.argmin(lows[head_start:head_end])
             head_price = lows[head_idx]
@@ -1674,9 +1677,10 @@ def draw_inverse_head_shoulders_on_chart(ax, chart_df):
             print("⚠️ Cannot calculate head")
             return
         
-        # Right Shoulder - หาจุดต่ำในช่วงขวา
+        # ========== หาจุด Right Shoulder ==========
         rs_start = mid_point
-        rs_end = min(len(lows), mid_point + search_range)
+        rs_end = min(chart_length, mid_point + search_range)
+        
         if rs_end > rs_start:
             right_shoulder_idx = rs_start + np.argmin(lows[rs_start:rs_end])
             rs_price = lows[right_shoulder_idx]
@@ -1684,18 +1688,24 @@ def draw_inverse_head_shoulders_on_chart(ax, chart_df):
             print("⚠️ Cannot calculate right shoulder")
             return
         
-        # ตรวจสอบว่า head ต่ำกว่า shoulders
+        # ========== ตรวจสอบความถูกต้องของ Pattern ==========
+        # Head ต้องต่ำกว่า shoulders
         if not (head_price < ls_price and head_price < rs_price):
-            print("⚠️ Not a valid Inverse H&S (head not lower than shoulders)")
+            print(f"⚠️ Not a valid Inverse H&S: head({head_price:.2f}) not lower than shoulders({ls_price:.2f}, {rs_price:.2f})")
             return
         
-        # ตรวจสอบว่า shoulders ใกล้เคียงกัน
+        # Shoulders ต้องใกล้เคียงกัน (ไม่ต่างกันเกิน 3%)
         shoulder_diff_pct = abs(ls_price - rs_price) / ls_price
-        if shoulder_diff_pct > 0.03:  # ต้องไม่ต่างกันเกิน 3%
-            print(f"⚠️ Shoulders not similar enough (diff={shoulder_diff_pct:.1%})")
+        if shoulder_diff_pct > 0.03:
+            print(f"⚠️ Shoulders not similar: diff={shoulder_diff_pct:.1%}")
             return
         
-        # ✅ 1. วาดเส้นเชื่อมจุดสำคัญ (รูปร่าง Inverse H&S)
+        print(f"✅ Valid Inverse H&S found:")
+        print(f"   Left Shoulder: idx={left_shoulder_idx}, price=${ls_price:.2f}")
+        print(f"   Head: idx={head_idx}, price=${head_price:.2f}")
+        print(f"   Right Shoulder: idx={right_shoulder_idx}, price=${rs_price:.2f}")
+        
+        # ========== 1. วาดเส้นเชื่อมจุดสำคัญ ==========
         points_x = [left_shoulder_idx, head_idx, right_shoulder_idx]
         points_y = [ls_price, head_price, rs_price]
         
@@ -1703,108 +1713,107 @@ def draw_inverse_head_shoulders_on_chart(ax, chart_df):
                color='#00ffff', linestyle='-', linewidth=4,
                alpha=0.8, label='Inverse H&S Shape', zorder=12)
         
-        # ✅ 2. วาดจุด Left Shoulder พร้อม marker ใหญ่และชัดเจน
+        # ========== 2. วาดจุด LEFT SHOULDER ==========
         ax.scatter([left_shoulder_idx], [ls_price], 
-                  color='#00ff88', s=300, marker='^',
+                  color='#00ff88', s=350, marker='^',
                   edgecolors='white', linewidths=4, 
-                  label='Left Shoulder', zorder=15)
+                  label='Left Shoulder', zorder=16)
         
-        ax.text(left_shoulder_idx, ls_price - 15, 
-               '🟢 LEFT SHOULDER', 
+        ax.text(left_shoulder_idx, ls_price - 12, 
+               '🟢 LEFT\nSHOULDER', 
                ha='center', va='top',
-               color='#00ff88', fontweight='bold', fontsize=13,
+               color='#00ff88', fontweight='bold', fontsize=12,
                bbox=dict(boxstyle='round,pad=0.7', 
                         facecolor='black', 
                         edgecolor='#00ff88',
                         alpha=0.95, linewidth=3))
         
-        # พื้นหลังเน้นจุด Left Shoulder
-        ax.axvline(x=left_shoulder_idx, color='#00ff88', 
-                  linestyle=':', linewidth=2, alpha=0.4, zorder=5)
+        # เส้นแนวตั้งช่วย identify
+        ax.axvline(x=left_shoulder_idx, ymin=0.1, ymax=0.9,
+                  color='#00ff88', linestyle=':', linewidth=2, alpha=0.3, zorder=5)
         
-        # ✅ 3. วาดจุด Head พร้อม marker ใหญ่พิเศษ
+        # ========== 3. วาดจุด HEAD (ใหญ่ที่สุด) ==========
         ax.scatter([head_idx], [head_price], 
-                  color='#0066ff', s=400, marker='^',
+                  color='#0066ff', s=450, marker='^',
                   edgecolors='white', linewidths=5, 
-                  label='Head (Lowest Point)', zorder=16)
+                  label='Head (Lowest)', zorder=17)
         
-        ax.text(head_idx, head_price - 15, 
+        ax.text(head_idx, head_price - 12, 
                '🔵 HEAD\n(LOWEST)', 
                ha='center', va='top',
-               color='#0066ff', fontweight='bold', fontsize=14,
+               color='#0066ff', fontweight='bold', fontsize=13,
                bbox=dict(boxstyle='round,pad=0.8', 
                         facecolor='black', 
                         edgecolor='#0066ff',
                         alpha=0.95, linewidth=4))
         
-        # พื้นหลังเน้นจุด Head
-        ax.axvline(x=head_idx, color='#0066ff', 
-                  linestyle=':', linewidth=2, alpha=0.4, zorder=5)
+        ax.axvline(x=head_idx, ymin=0.1, ymax=0.9,
+                  color='#0066ff', linestyle=':', linewidth=2, alpha=0.3, zorder=5)
         
-        # ✅ 4. วาดจุด Right Shoulder พร้อม marker ใหญ่และชัดเจน
+        # ========== 4. วาดจุด RIGHT SHOULDER ==========
         ax.scatter([right_shoulder_idx], [rs_price], 
-                  color='#00ff88', s=300, marker='^',
+                  color='#00ff88', s=350, marker='^',
                   edgecolors='white', linewidths=4, 
-                  label='Right Shoulder', zorder=15)
+                  label='Right Shoulder', zorder=16)
         
-        ax.text(right_shoulder_idx, rs_price - 15, 
-               '🟢 RIGHT SHOULDER', 
+        ax.text(right_shoulder_idx, rs_price - 12, 
+               '🟢 RIGHT\nSHOULDER', 
                ha='center', va='top',
-               color='#00ff88', fontweight='bold', fontsize=13,
+               color='#00ff88', fontweight='bold', fontsize=12,
                bbox=dict(boxstyle='round,pad=0.7', 
                         facecolor='black', 
                         edgecolor='#00ff88',
                         alpha=0.95, linewidth=3))
         
-        # พื้นหลังเน้นจุด Right Shoulder
-        ax.axvline(x=right_shoulder_idx, color='#00ff88', 
-                  linestyle=':', linewidth=2, alpha=0.4, zorder=5)
+        ax.axvline(x=right_shoulder_idx, ymin=0.1, ymax=0.9,
+                  color='#00ff88', linestyle=':', linewidth=2, alpha=0.3, zorder=5)
         
-        # ✅ 5. หา Neckline (เส้นต้าน - เชื่อม peaks ระหว่าง shoulders)
-        # หา peaks ระหว่าง left shoulder และ head
-        left_peak_section = highs[left_shoulder_idx:head_idx+1]
-        if len(left_peak_section) > 0:
+        # ========== 5. หาและวาด Neckline ==========
+        # หา peaks ระหว่าง left shoulder กับ head
+        if head_idx > left_shoulder_idx:
+            left_peak_section = highs[left_shoulder_idx:head_idx+1]
             left_peak_idx = left_shoulder_idx + np.argmax(left_peak_section)
             left_peak_price = highs[left_peak_idx]
         else:
             left_peak_idx = left_shoulder_idx
             left_peak_price = highs[left_shoulder_idx]
         
-        # หา peaks ระหว่าง head และ right shoulder
-        right_peak_section = highs[head_idx:right_shoulder_idx+1]
-        if len(right_peak_section) > 0:
+        # หา peaks ระหว่าง head กับ right shoulder
+        if right_shoulder_idx > head_idx:
+            right_peak_section = highs[head_idx:right_shoulder_idx+1]
             right_peak_idx = head_idx + np.argmax(right_peak_section)
             right_peak_price = highs[right_peak_idx]
         else:
             right_peak_idx = right_shoulder_idx
             right_peak_price = highs[right_shoulder_idx]
         
-        # วาดจุด peaks
+        # วาดจุด neckline
         ax.scatter([left_peak_idx, right_peak_idx], 
                   [left_peak_price, right_peak_price],
-                  color='#ff00ff', s=180, marker='v',
+                  color='#ff00ff', s=200, marker='v',
                   edgecolors='white', linewidths=2, 
                   label='Neckline Points', zorder=14)
         
-        # ✅ 6. วาดเส้น Neckline
-        # ใช้ linear interpolation สำหรับ neckline
-        neckline_x = [left_peak_idx, right_peak_idx]
-        neckline_y = [left_peak_price, right_peak_price]
-        
-        ax.plot(neckline_x, neckline_y, 
+        # วาดเส้น Neckline
+        ax.plot([left_peak_idx, right_peak_idx], 
+               [left_peak_price, right_peak_price], 
                color='#00ffff', linestyle='--', linewidth=4, 
-               alpha=0.95, label='Neckline (Resistance)', zorder=13)
+               alpha=0.95, label='Neckline', zorder=13)
         
         # ขยาย neckline ไปข้างหน้า
-        if right_shoulder_idx < len(lows) - 1:
-            slope = (right_peak_price - left_peak_price) / (right_peak_idx - left_peak_idx) if right_peak_idx != left_peak_idx else 0
-            extended_x = len(lows) - 1
+        if right_peak_idx < chart_length - 1:
+            if right_peak_idx != left_peak_idx:
+                slope = (right_peak_price - left_peak_price) / (right_peak_idx - left_peak_idx)
+            else:
+                slope = 0
+            
+            extended_x = chart_length - 1
             extended_y = right_peak_price + slope * (extended_x - right_peak_idx)
             
             ax.plot([right_peak_idx, extended_x], 
                    [right_peak_price, extended_y],
                    color='#00ffff', linestyle=':', linewidth=3, 
-                   alpha=0.7, zorder=12)
+                   alpha=0.6, zorder=12)
         
         # Label Neckline
         neckline_mid_x = (left_peak_idx + right_peak_idx) / 2
@@ -1813,80 +1822,78 @@ def draw_inverse_head_shoulders_on_chart(ax, chart_df):
         ax.text(neckline_mid_x, neckline_mid_y + 8, 
                '━━ NECKLINE ━━', 
                ha='center', va='bottom',
-               color='#00ffff', fontweight='bold', fontsize=12,
+               color='#00ffff', fontweight='bold', fontsize=11,
                bbox=dict(boxstyle='round,pad=0.5', 
                         facecolor='black', 
                         edgecolor='#00ffff',
                         alpha=0.9, linewidth=2))
         
-        # ✅ 7. คำนวณ Target (Bullish breakout)
+        # ========== 6. คำนวณและวาด Target ==========
         hs_height = neckline_mid_y - head_price
         target_price = neckline_mid_y + hs_height
         
         ax.axhline(y=target_price, color='#00ff00', linestyle=':', 
                   linewidth=4, alpha=0.9, 
-                  label=f'Bullish Target: ${target_price:.2f}', zorder=11)
+                  label=f'Target: ${target_price:.2f}', zorder=11)
         
-        # Target annotation
-        ax.annotate(f'🎯 BULLISH TARGET\n${target_price:.2f}\n(+{hs_height:.2f})', 
-                   xy=(len(lows) - 1, target_price), 
-                   xytext=(len(lows) - 8, target_price),
+        # Target annotation with arrow
+        ax.annotate(f'🎯 TARGET\n${target_price:.2f}\n(+{hs_height:.2f})', 
+                   xy=(chart_length - 1, target_price), 
+                   xytext=(chart_length - 6, target_price),
                    ha='right', va='center',
-                   color='#00ff00', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.7', 
+                   color='#00ff00', fontweight='bold', fontsize=11,
+                   bbox=dict(boxstyle='round,pad=0.6', 
                             facecolor='black', 
                             edgecolor='#00ff00',
                             alpha=0.95, linewidth=3),
                    arrowprops=dict(arrowstyle='->', 
                                   color='#00ff00', 
-                                  lw=3))
+                                  lw=2.5))
         
-        # ✅ 8. Main Pattern Label พร้อมข้อมูลเพิ่มเติม
+        # ========== 7. Pattern Info Box ==========
         label_x = (left_shoulder_idx + right_shoulder_idx) / 2
         label_y = (head_price + neckline_mid_y) / 2
         
-        pattern_info = f"""🔄 INVERSE HEAD & SHOULDERS
-━━━━━━━━━━━━━━━━
-Pattern Height: ${hs_height:.2f}
-Shoulder Similarity: {100 - shoulder_diff_pct*100:.1f}%
-Signal: BULLISH REVERSAL"""
+        pattern_info = f"""🔄 INVERSE H&S
+Height: ${hs_height:.2f}
+Similarity: {100 - shoulder_diff_pct*100:.1f}%
+📈 BULLISH REVERSAL"""
         
         ax.text(label_x, label_y, pattern_info,
                ha='center', va='center',
-               color='#00ffff', fontweight='bold', fontsize=11,
-               bbox=dict(boxstyle='round,pad=1.0', 
+               color='#00ffff', fontweight='bold', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.8', 
                         facecolor='#0a0a0a', 
                         edgecolor='#00ffff',
                         alpha=0.95, linewidth=3))
         
-        # ✅ 9. เพิ่ม measurement lines
-        # ความสูงจาก head ถึง neckline
-        ax.annotate('', xy=(head_idx + 3, head_price), 
-                   xytext=(head_idx + 3, neckline_mid_y),
+        # ========== 8. Measurement Line ==========
+        # แสดงความสูงของ pattern
+        measure_x = head_idx + 2
+        ax.annotate('', 
+                   xy=(measure_x, head_price), 
+                   xytext=(measure_x, neckline_mid_y),
                    arrowprops=dict(arrowstyle='<->', 
                                   color='#ffaa00', 
                                   lw=2))
         
-        ax.text(head_idx + 4, (head_price + neckline_mid_y) / 2, 
-               f'H: {hs_height:.2f}', 
+        ax.text(measure_x + 1, (head_price + neckline_mid_y) / 2, 
+               f'{hs_height:.1f}', 
                ha='left', va='center',
-               color='#ffaa00', fontweight='bold', fontsize=10,
+               color='#ffaa00', fontweight='bold', fontsize=9,
                bbox=dict(boxstyle='round,pad=0.3', 
                         facecolor='black', alpha=0.8))
         
-        # ✅ 10. Support zone highlight
-        support_zone_height = hs_height * 0.15
-        ax.axhspan(head_price - support_zone_height, 
-                  head_price + support_zone_height,
-                  color='#0066ff', alpha=0.15, zorder=1,
-                  label='Strong Support Zone')
+        # ========== 9. Support Zone Highlight ==========
+        support_zone = hs_height * 0.15
+        ax.axhspan(head_price - support_zone, 
+                  head_price + support_zone,
+                  color='#0066ff', alpha=0.12, zorder=1,
+                  label='Support Zone')
         
-        print(f"✅ Inverse H&S drawn with clear markers:")
-        print(f"   Left Shoulder: idx={left_shoulder_idx}, price=${ls_price:.2f}")
-        print(f"   Head: idx={head_idx}, price=${head_price:.2f}")
-        print(f"   Right Shoulder: idx={right_shoulder_idx}, price=${rs_price:.2f}")
-        print(f"   Neckline: ~${neckline_mid_y:.2f}")
-        print(f"   Target: ${target_price:.2f} (+{hs_height:.2f})")
+        print(f"✅ Inverse H&S markers drawn successfully!")
+        print(f"   Neckline: ${neckline_mid_y:.2f}")
+        print(f"   Target: ${target_price:.2f}")
         
     except Exception as e:
         print(f"❌ Draw Inverse H&S error: {e}")
