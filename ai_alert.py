@@ -1244,216 +1244,129 @@ def draw_pennant_on_chart(ax, df):
         import traceback
         traceback.print_exc()
 
-def draw_wedge_falling_on_chart(ax, df):
-    """วาด Falling Wedge Pattern (Bullish) บนกราฟ - FIXED with clear markers"""
-    try:
-        highs = df['high'].values
-        lows = df['low'].values
-        
-        if len(highs) < 30:
-            print("⚠️ Not enough data for Falling Wedge")
-            return
-        
-        # หาจุดสูงและต่ำที่สำคัญ
-        high_points = []
-        low_points = []
-        
-        lookback = 30
-        for i in range(len(highs) - lookback, len(highs) - 5):
-            if i > 2 and i < len(highs) - 2:
-                # Swing high
-                if highs[i] > highs[i-1] and highs[i] > highs[i+1] and \
-                   highs[i] > highs[i-2] and highs[i] > highs[i+2]:
-                    high_points.append((i, highs[i]))
-                
-                # Swing low
-                if lows[i] < lows[i-1] and lows[i] < lows[i+1] and \
-                   lows[i] < lows[i-2] and lows[i] < lows[i+2]:
-                    low_points.append((i, lows[i]))
-        
-        if len(high_points) < 2 or len(low_points) < 2:
-            print(f"⚠️ Not enough points for Falling Wedge (H={len(high_points)}, L={len(low_points)})")
-            return
-        
-        # เอา 2-3 จุดล่าสุด
-        recent_highs = high_points[-3:] if len(high_points) >= 3 else high_points[-2:]
-        recent_lows = low_points[-3:] if len(low_points) >= 3 else low_points[-2:]
-
-        # ตรวจสอบว่าทั้งสองเส้นขาลง และ resistance ลงชันกว่า support
-        h_slope = (recent_highs[-1][1] - recent_highs[0][1]) / (recent_highs[-1][0] - recent_highs[0][0])
-        l_slope = (recent_lows[-1][1] - recent_lows[0][1]) / (recent_lows[-1][0] - recent_lows[0][0])
-        
-        if h_slope >= 0 or l_slope >= 0:
-            print("⚠️ Not a valid Falling Wedge (slopes not descending)")
-            return
-        
-        # ✅ FIX: วาด markers ทุกจุดก่อน
-        print(f"📍 Drawing {len(recent_highs)} high points and {len(recent_lows)} low points")
-        
-        # 🔴 วาดจุดสูงทั้งหมด (Resistance points)
-        for i, (idx, price) in enumerate(recent_highs):
-            ax.scatter([idx], [price], color='#ff6600', s=200, 
-                      marker='v', edgecolors='white', linewidths=3, zorder=20)
-            
-            ax.text(idx, price + 12, f'R{i+1}', 
-                   ha='center', va='bottom',
-                   color='#ff6600', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.5', 
-                            facecolor='black', 
-                            edgecolor='#ff6600',
-                            alpha=0.95, linewidth=2),
-                   zorder=25)
-        
-        # 🟢 วาดจุดต่ำทั้งหมด (Support points)
-        for i, (idx, price) in enumerate(recent_lows):
-            ax.scatter([idx], [price], color='#00ff88', s=200, 
-                      marker='^', edgecolors='white', linewidths=3, zorder=20)
-            
-            ax.text(idx, price - 12, f'S{i+1}', 
-                   ha='center', va='top',
-                   color='#00ff88', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.5', 
-                            facecolor='black', 
-                            edgecolor='#00ff88',
-                            alpha=0.95, linewidth=2),
-                   zorder=25)
-        
-        # 📉 วาดเส้น Resistance (ขาลงชัน)
-        h1, h2 = recent_highs[0], recent_highs[-1]
-        ax.plot([h1[0], h2[0]], [h1[1], h2[1]], 
-               color='#ff6600', linestyle='-', linewidth=3,
-               alpha=0.9, label='Falling Resistance (Steeper)', zorder=10)
-        
-        # 📉 วาดเส้น Support (ขาลงช้า)
-        l1, l2 = recent_lows[0], recent_lows[-1]
-        ax.plot([l1[0], l2[0]], [l1[1], l2[1]], 
-               color='#00ff88', linestyle='-', linewidth=3,
-               alpha=0.9, label='Falling Support', zorder=10)
-        
-        # 🎯 Target (Bullish breakout)
-        wedge_height = h2[1] - l2[1]
-        target_price = h2[1] + wedge_height
-        
-        ax.axhline(y=target_price, color='#00ff00', linestyle=':', 
-                  linewidth=3, alpha=0.8, label=f'Breakout Target: ${target_price:.2f}')
-        
-        ax.text(len(df) - 2, target_price, 
-               f'🎯 Target\n${target_price:.2f}', 
-               ha='right', va='center',
-               color='#00ff00', fontweight='bold', fontsize=11,
-               bbox=dict(boxstyle='round,pad=0.5', 
-                        facecolor='black', edgecolor='#00ff00',
-                        alpha=0.9, linewidth=2))
-        
-        # 📊 Label ตรงกลาง
-        mid_x = (h1[0] + h2[0]) / 2
-        mid_y = (h2[1] + l2[1]) / 2
-        
-        ax.text(mid_x, mid_y, 
-               '📐 FALLING WEDGE\n(Bullish)', 
-               ha='center', va='center',
-               color='#00ff88', fontweight='bold', fontsize=13,
-               bbox=dict(boxstyle='round,pad=0.7', 
-                        facecolor='black', edgecolor='#00ff88',
-                        alpha=0.95, linewidth=3),
-               zorder=25)
-        
-        print(f"✅ Falling Wedge drawn with {len(recent_highs)} resistance and {len(recent_lows)} support points")
-        
-    except Exception as e:
-        print(f"❌ Draw Falling Wedge error: {e}")
-        import traceback
-        traceback.print_exc()
-
 def draw_wedge_rising_on_chart(ax, df):
-    """วาด Rising Wedge Pattern (Bearish) บนกราฟ - FIXED with clear markers"""
+    """วาด Rising Wedge Pattern (Bearish) บนกราฟ - IMPROVED VERSION"""
     try:
         highs = df['high'].values
         lows = df['low'].values
         
-        if len(highs) < 30:
+        if len(highs) < 20:  # ✅ ลด requirement
             print("⚠️ Not enough data for Rising Wedge")
             return
         
-        # หาจุดสูงและต่ำที่สำคัญ
+        # ✅ ใช้ข้อมูลทั้งหมดที่มี แทนที่จะจำกัดแค่ 30 bars
+        lookback = min(40, len(highs))
+        start_idx = len(highs) - lookback
+        
+        # ✅ หาจุดสูงและต่ำที่สำคัญ (ผ่อนเงื่อนไข)
         high_points = []
         low_points = []
         
-        lookback = 30
-        for i in range(len(highs) - lookback, len(highs) - 5):
-            if i > 2 and i < len(highs) - 2:
-                # Swing high
-                if highs[i] > highs[i-1] and highs[i] > highs[i+1] and \
-                   highs[i] > highs[i-2] and highs[i] > highs[i+2]:
-                    high_points.append((i, highs[i]))
+        for i in range(start_idx + 3, len(highs) - 3):
+            # ✅ Swing high - ผ่อนเงื่อนไข (ใช้ 1 แท่งข้างเคียงแทน 2)
+            if highs[i] >= highs[i-1] and highs[i] >= highs[i+1]:
+                # ตรวจสอบเพิ่มเติมว่าเป็น local maximum
+                is_high = True
+                for j in range(max(0, i-3), min(len(highs), i+4)):
+                    if j != i and highs[j] > highs[i]:
+                        is_high = False
+                        break
                 
-                # Swing low
-                if lows[i] < lows[i-1] and lows[i] < lows[i+1] and \
-                   lows[i] < lows[i-2] and lows[i] < lows[i+2]:
+                if is_high:
+                    high_points.append((i, highs[i]))
+            
+            # ✅ Swing low - ผ่อนเงื่อนไข
+            if lows[i] <= lows[i-1] and lows[i] <= lows[i+1]:
+                # ตรวจสอบเพิ่มเติมว่าเป็น local minimum
+                is_low = True
+                for j in range(max(0, i-3), min(len(lows), i+4)):
+                    if j != i and lows[j] < lows[i]:
+                        is_low = False
+                        break
+                
+                if is_low:
                     low_points.append((i, lows[i]))
         
+        print(f"🔍 Rising Wedge: Found {len(high_points)} highs, {len(low_points)} lows")
+        
         if len(high_points) < 2 or len(low_points) < 2:
-            print(f"⚠️ Not enough points for Rising Wedge (H={len(high_points)}, L={len(low_points)})")
+            print(f"⚠️ Not enough swing points for Rising Wedge")
             return
         
-        # เอา 2-3 จุดล่าสุดของแต่ละด้าน
+        # ✅ เอา 2-3 จุดล่าสุดของแต่ละด้าน
         recent_highs = high_points[-3:] if len(high_points) >= 3 else high_points[-2:]
         recent_lows = low_points[-3:] if len(low_points) >= 3 else low_points[-2:]
         
-        # ตรวจสอบว่าทั้งสองเส้นขาขึ้น และ support ขึ้นชันกว่า resistance
-        h_slope = (recent_highs[-1][1] - recent_highs[0][1]) / (recent_highs[-1][0] - recent_highs[0][0])
-        l_slope = (recent_lows[-1][1] - recent_lows[0][1]) / (recent_lows[-1][0] - recent_lows[0][0])
+        # ✅ คำนวณ Slope (ผ่อนเงื่อนไข)
+        h1, h_last = recent_highs[0], recent_highs[-1]
+        l1, l_last = recent_lows[0], recent_lows[-1]
         
-        if h_slope <= 0 or l_slope <= 0:
-            print("⚠️ Not a valid Rising Wedge (slopes not ascending)")
+        h_slope = (h_last[1] - h1[1]) / (h_last[0] - h1[0]) if h_last[0] != h1[0] else 0
+        l_slope = (l_last[1] - l1[1]) / (l_last[0] - l1[0]) if l_last[0] != l1[0] else 0
+        
+        print(f"   Slopes: h_slope={h_slope:.4f}, l_slope={l_slope:.4f}")
+        
+        # ✅ ตรวจสอบว่าเป็น Rising Wedge (ทั้งสองขาขึ้น แต่ support ขึ้นชันกว่า)
+        # ผ่อนเงื่อนไข: อนุญาตให้ slope เล็กน้อย
+        if h_slope < -0.1 or l_slope < -0.1:  # ถ้าลงชันมาก = ไม่ใช่ rising
+            print(f"⚠️ Not a valid Rising Wedge (slopes descending)")
             return
         
-        # ✅ FIX: วาด markers ทุกจุดก่อน
-        print(f"📍 Drawing {len(recent_highs)} high points and {len(recent_lows)} low points")
+        # ✅ ตรวจสอบว่า support ขึ้นชันกว่า resistance (หรือใกล้เคียงกัน)
+        # Rising Wedge: ทั้งสองเส้นขาขึ้น และลู่เข้าหากัน
+        if not (l_slope >= h_slope * 0.7):  # support ต้องขึ้นชันกว่า หรือใกล้เคียง
+            print(f"⚠️ Support not steeper than resistance")
+            return
         
-        # 🔴 วาดจุดสูงทั้งหมด (Resistance points)
-        for i, (idx, price) in enumerate(recent_highs):
-            ax.scatter([idx], [price], color='#ff6600', s=200, 
-                      marker='v', edgecolors='white', linewidths=3, zorder=20)
-            
-            ax.text(idx, price + 12, f'R{i+1}', 
-                   ha='center', va='bottom',
-                   color='#ff6600', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.5', 
-                            facecolor='black', 
-                            edgecolor='#ff6600',
-                            alpha=0.95, linewidth=2),
-                   zorder=25)
+        # ✅ ตรวจสอบว่าเส้นลู่เข้าหากัน
+        start_width = h1[1] - l1[1]
+        end_width = h_last[1] - l_last[1]
         
-        # 🟢 วาดจุดต่ำทั้งหมด (Support points - steeper)
-        for i, (idx, price) in enumerate(recent_lows):
-            ax.scatter([idx], [price], color='#00ff88', s=200, 
-                      marker='^', edgecolors='white', linewidths=3, zorder=20)
-            
-            ax.text(idx, price - 12, f'S{i+1}', 
-                   ha='center', va='top',
-                   color='#00ff88', fontweight='bold', fontsize=12,
-                   bbox=dict(boxstyle='round,pad=0.5', 
-                            facecolor='black', 
-                            edgecolor='#00ff88',
-                            alpha=0.95, linewidth=2),
-                   zorder=25)
+        if end_width >= start_width:  # ถ้าช่วงห่างเพิ่มขึ้น = ไม่ได้ลู่เข้า
+            print(f"⚠️ Lines not converging (start={start_width:.2f}, end={end_width:.2f})")
+            return
         
-        # 📈 วาดเส้น Resistance (ขาขึ้นช้า)
-        h1, h2 = recent_highs[0], recent_highs[-1]
-        ax.plot([h1[0], h2[0]], [h1[1], h2[1]], 
+        # 📈 วาดเส้น Resistance (ขาบน)
+        ax.plot([h1[0], h_last[0]], [h1[1], h_last[1]], 
                color='#ff6600', linestyle='-', linewidth=3,
                alpha=0.9, label='Rising Resistance', zorder=10)
         
-        # 📈 วาดเส้น Support (ขาขึ้นชัน)
-        l1, l2 = recent_lows[0], recent_lows[-1]
-        ax.plot([l1[0], l2[0]], [l1[1], l2[1]], 
+        # ✅ วาดจุด Resistance พร้อม marker ชัดเจน
+        for idx, price in recent_highs:
+            ax.scatter([idx], [price], color='#ff6600', s=200, 
+                      marker='v', edgecolors='white', linewidths=3, zorder=15)
+            
+            # เพิ่ม label ที่แต่ละจุด
+            ax.text(idx, price + 8, 'R', 
+                   ha='center', va='bottom',
+                   color='#ff6600', fontweight='bold', fontsize=10,
+                   bbox=dict(boxstyle='circle,pad=0.3', 
+                            facecolor='#ff6600', 
+                            edgecolor='white',
+                            alpha=0.9, linewidth=2))
+        
+        # 📈 วาดเส้น Support (ขาล่าง - ขึ้นชัน)
+        ax.plot([l1[0], l_last[0]], [l1[1], l_last[1]], 
                color='#00ff88', linestyle='-', linewidth=3,
                alpha=0.9, label='Rising Support (Steeper)', zorder=10)
         
-        # 🎯 Target (Bearish breakdown)
-        wedge_height = h2[1] - l2[1]
-        target_price = l2[1] - wedge_height
+        # ✅ วาดจุด Support พร้อม marker ชัดเจน
+        for idx, price in recent_lows:
+            ax.scatter([idx], [price], color='#00ff88', s=200, 
+                      marker='^', edgecolors='white', linewidths=3, zorder=15)
+            
+            # เพิ่ม label ที่แต่ละจุด
+            ax.text(idx, price - 8, 'S', 
+                   ha='center', va='top',
+                   color='#00ff88', fontweight='bold', fontsize=10,
+                   bbox=dict(boxstyle='circle,pad=0.3', 
+                            facecolor='#00ff88',
+                            edgecolor='white',
+                            alpha=0.9, linewidth=2))
+        
+        # 🎯 คำนวณ Target (Bearish breakdown)
+        wedge_height = h_last[1] - l_last[1]
+        target_price = l_last[1] - wedge_height
         
         ax.axhline(y=target_price, color='#ff0000', linestyle=':', 
                   linewidth=3, alpha=0.8, label=f'Breakdown Target: ${target_price:.2f}')
@@ -1466,23 +1379,184 @@ def draw_wedge_rising_on_chart(ax, df):
                         facecolor='black', edgecolor='#ff0000',
                         alpha=0.9, linewidth=2))
         
-        # 📊 Label ตรงกลาง
-        mid_x = (h1[0] + h2[0]) / 2
-        mid_y = (h2[1] + l2[1]) / 2
+        # 📊 Main Label พร้อมข้อมูล Slope
+        mid_x = (h1[0] + h_last[0]) / 2
+        mid_y = (h_last[1] + l_last[1]) / 2
+        
+        convergence_info = f"Converging: {start_width:.2f}→{end_width:.2f}"
         
         ax.text(mid_x, mid_y, 
-               '📐 RISING WEDGE\n(Bearish)', 
+               f'📐 RISING WEDGE\n(Bearish)\n{convergence_info}', 
                ha='center', va='center',
-               color='#ff6600', fontweight='bold', fontsize=13,
-               bbox=dict(boxstyle='round,pad=0.7', 
+               color='#ff6600', fontweight='bold', fontsize=12,
+               bbox=dict(boxstyle='round,pad=0.6', 
                         facecolor='black', edgecolor='#ff6600',
-                        alpha=0.95, linewidth=3),
-               zorder=25)
+                        alpha=0.95, linewidth=2))
         
-        print(f"✅ Rising Wedge drawn with {len(recent_highs)} resistance and {len(recent_lows)} support points")
+        print(f"✅ Rising Wedge drawn successfully!")
+        print(f"   Resistance points: {len(recent_highs)}, Support points: {len(recent_lows)}")
+        print(f"   Convergence: {start_width:.2f} → {end_width:.2f} ({((end_width/start_width-1)*100):.1f}%)")
         
     except Exception as e:
         print(f"❌ Draw Rising Wedge error: {e}")
+        import traceback
+        traceback.print_exc()
+
+def draw_wedge_falling_on_chart(ax, df):
+    """วาด Falling Wedge Pattern (Bullish) บนกราฟ - IMPROVED VERSION"""
+    try:
+        highs = df['high'].values
+        lows = df['low'].values
+        
+        if len(highs) < 20:  # ✅ ลด requirement
+            print("⚠️ Not enough data for Falling Wedge")
+            return
+        
+        # ✅ ใช้ข้อมูลทั้งหมดที่มี แทนที่จะจำกัดแค่ 30 bars
+        lookback = min(40, len(highs))
+        start_idx = len(highs) - lookback
+        
+        # ✅ หาจุดสูงและต่ำที่สำคัญ (ผ่อนเงื่อนไข)
+        high_points = []
+        low_points = []
+        
+        for i in range(start_idx + 3, len(highs) - 3):
+            # ✅ Swing high - ผ่อนเงื่อนไข (ใช้ 1 แท่งข้างเคียงแทน 2)
+            if highs[i] >= highs[i-1] and highs[i] >= highs[i+1]:
+                # ตรวจสอบเพิ่มเติมว่าเป็น local maximum
+                is_high = True
+                for j in range(max(0, i-3), min(len(highs), i+4)):
+                    if j != i and highs[j] > highs[i]:
+                        is_high = False
+                        break
+                
+                if is_high:
+                    high_points.append((i, highs[i]))
+            
+            # ✅ Swing low - ผ่อนเงื่อนไข
+            if lows[i] <= lows[i-1] and lows[i] <= lows[i+1]:
+                # ตรวจสอบเพิ่มเติมว่าเป็น local minimum
+                is_low = True
+                for j in range(max(0, i-3), min(len(lows), i+4)):
+                    if j != i and lows[j] < lows[i]:
+                        is_low = False
+                        break
+                
+                if is_low:
+                    low_points.append((i, lows[i]))
+        
+        print(f"🔍 Falling Wedge: Found {len(high_points)} highs, {len(low_points)} lows")
+        
+        if len(high_points) < 2 or len(low_points) < 2:
+            print(f"⚠️ Not enough swing points for Falling Wedge")
+            return
+        
+        # ✅ เอา 2-3 จุดล่าสุดของแต่ละด้าน
+        recent_highs = high_points[-3:] if len(high_points) >= 3 else high_points[-2:]
+        recent_lows = low_points[-3:] if len(low_points) >= 3 else low_points[-2:]
+        
+        # ✅ คำนวณ Slope (ผ่อนเงื่อนไข)
+        h1, h_last = recent_highs[0], recent_highs[-1]
+        l1, l_last = recent_lows[0], recent_lows[-1]
+        
+        h_slope = (h_last[1] - h1[1]) / (h_last[0] - h1[0]) if h_last[0] != h1[0] else 0
+        l_slope = (l_last[1] - l1[1]) / (l_last[0] - l1[0]) if l_last[0] != l1[0] else 0
+        
+        print(f"   Slopes: h_slope={h_slope:.4f}, l_slope={l_slope:.4f}")
+        
+        # ✅ ตรวจสอบว่าเป็น Falling Wedge (ทั้งสองขาลง แต่ resistance ลงชันกว่า)
+        # ผ่อนเงื่อนไข: อนุญาตให้ slope เล็กน้อย
+        if h_slope > 0.1 or l_slope > 0.1:  # ถ้าขึ้นชันมาก = ไม่ใช่ falling
+            print(f"⚠️ Not a valid Falling Wedge (slopes ascending)")
+            return
+        
+        # ✅ ตรวจสอบว่า resistance ลงชันกว่า support (หรือใกล้เคียงกัน)
+        # Falling Wedge: ทั้งสองเส้นขาลง และลู่เข้าหากัน
+        if not (h_slope <= l_slope * 0.7):  # resistance ต้องลงชันกว่า หรือใกล้เคียง
+            print(f"⚠️ Resistance not steeper than support")
+            return
+        
+        # ✅ ตรวจสอบว่าเส้นลู่เข้าหากัน
+        start_width = h1[1] - l1[1]
+        end_width = h_last[1] - l_last[1]
+        
+        if end_width >= start_width:  # ถ้าช่วงห่างเพิ่มขึ้น = ไม่ได้ลู่เข้า
+            print(f"⚠️ Lines not converging (start={start_width:.2f}, end={end_width:.2f})")
+            return
+        
+        # 📉 วาดเส้น Resistance (ขาบน - ลงชัน)
+        ax.plot([h1[0], h_last[0]], [h1[1], h_last[1]], 
+               color='#ff6600', linestyle='-', linewidth=3,
+               alpha=0.9, label='Falling Resistance (Steeper)', zorder=10)
+        
+        # ✅ วาดจุด Resistance พร้อม marker ชัดเจน
+        for idx, price in recent_highs:
+            ax.scatter([idx], [price], color='#ff6600', s=200, 
+                      marker='v', edgecolors='white', linewidths=3, zorder=15)
+            
+            # เพิ่ม label ที่แต่ละจุด
+            ax.text(idx, price + 8, 'R', 
+                   ha='center', va='bottom',
+                   color='#ff6600', fontweight='bold', fontsize=10,
+                   bbox=dict(boxstyle='circle,pad=0.3', 
+                            facecolor='#ff6600', 
+                            edgecolor='white',
+                            alpha=0.9, linewidth=2))
+        
+        # 📉 วาดเส้น Support (ขาล่าง - ลงช้า)
+        ax.plot([l1[0], l_last[0]], [l1[1], l_last[1]], 
+               color='#00ff88', linestyle='-', linewidth=3,
+               alpha=0.9, label='Falling Support', zorder=10)
+        
+        # ✅ วาดจุด Support พร้อม marker ชัดเจน
+        for idx, price in recent_lows:
+            ax.scatter([idx], [price], color='#00ff88', s=200, 
+                      marker='^', edgecolors='white', linewidths=3, zorder=15)
+            
+            # เพิ่ม label ที่แต่ละจุด
+            ax.text(idx, price - 8, 'S', 
+                   ha='center', va='top',
+                   color='#00ff88', fontweight='bold', fontsize=10,
+                   bbox=dict(boxstyle='circle,pad=0.3', 
+                            facecolor='#00ff88',
+                            edgecolor='white',
+                            alpha=0.9, linewidth=2))
+        
+        # 🎯 คำนวณ Target (Bullish breakout)
+        wedge_height = h_last[1] - l_last[1]
+        target_price = h_last[1] + wedge_height
+        
+        ax.axhline(y=target_price, color='#00ff00', linestyle=':', 
+                  linewidth=3, alpha=0.8, label=f'Breakout Target: ${target_price:.2f}')
+        
+        ax.text(len(df) - 2, target_price, 
+               f'🎯 Target\n${target_price:.2f}', 
+               ha='right', va='center',
+               color='#00ff00', fontweight='bold', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='black', edgecolor='#00ff00',
+                        alpha=0.9, linewidth=2))
+        
+        # 📊 Main Label พร้อมข้อมูล Slope
+        mid_x = (h1[0] + h_last[0]) / 2
+        mid_y = (h_last[1] + l_last[1]) / 2
+        
+        convergence_info = f"Converging: {start_width:.2f}→{end_width:.2f}"
+        
+        ax.text(mid_x, mid_y, 
+               f'📐 FALLING WEDGE\n(Bullish)\n{convergence_info}', 
+               ha='center', va='center',
+               color='#00ff88', fontweight='bold', fontsize=12,
+               bbox=dict(boxstyle='round,pad=0.6', 
+                        facecolor='black', edgecolor='#00ff88',
+                        alpha=0.95, linewidth=2))
+        
+        print(f"✅ Falling Wedge drawn successfully!")
+        print(f"   Resistance points: {len(recent_highs)}, Support points: {len(recent_lows)}")
+        print(f"   Convergence: {start_width:.2f} → {end_width:.2f} ({((end_width/start_width-1)*100):.1f}%)")
+        
+    except Exception as e:
+        print(f"❌ Draw Falling Wedge error: {e}")
         import traceback
         traceback.print_exc()
 
