@@ -1989,139 +1989,166 @@ def draw_rectangle_on_chart(ax, df):
         traceback.print_exc()
 
 def draw_diamond_on_chart(ax, df):
-    """วาด Diamond Pattern บนกราฟ"""
+    """วาด Diamond Pattern บนกราฟ - IMPROVED VERSION"""
     try:
         highs = df['high'].values
         lows = df['low'].values
+        closes = df['close'].values
         
-        if len(highs) < 40:
+        if len(highs) < 30:
             print("⚠️ Not enough data for Diamond")
             return
         
-        # Diamond pattern: ความผันผวนขยายตัวแล้วหดตัว
-        # แบ่งเป็น 4 ส่วน
-        quarter_len = 10
+        # ✅ Diamond pattern: volatility expansion then contraction
+        # แบ่งเป็น 4 ส่วน (quarters)
+        lookback = min(40, len(highs))
+        start_idx = len(highs) - lookback
+        quarter_len = lookback // 4
         
-        # ส่วนที่ 1: ความผันผวนปกติ
-        q1_start = len(highs) - 40
-        q1_end = q1_start + quarter_len
-        q1_range = np.max(highs[q1_start:q1_end]) - np.min(lows[q1_start:q1_end])
+        # คำนวณ volatility ของแต่ละส่วน
+        quarters_volatility = []
+        for q in range(4):
+            q_start = start_idx + (q * quarter_len)
+            q_end = start_idx + ((q + 1) * quarter_len) if q < 3 else len(highs)
+            
+            if q_end > q_start:
+                q_range = np.max(highs[q_start:q_end]) - np.min(lows[q_start:q_end])
+                quarters_volatility.append({
+                    'quarter': q + 1,
+                    'start': q_start,
+                    'end': q_end,
+                    'volatility': q_range
+                })
         
-        # ส่วนที่ 2: ความผันผวนขยายตัว
-        q2_start = q1_end
-        q2_end = q2_start + quarter_len
-        q2_range = np.max(highs[q2_start:q2_end]) - np.min(lows[q2_start:q2_end])
-        
-        # ส่วนที่ 3: ความผันผวนสูงสุด
-        q3_start = q2_end
-        q3_end = q3_start + quarter_len
-        q3_range = np.max(highs[q3_start:q3_end]) - np.min(lows[q3_start:q3_end])
-        
-        # ส่วนที่ 4: ความผันผวนหดตัว
-        q4_start = q3_end
-        q4_end = len(highs)
-        q4_range = np.max(highs[q4_start:q4_end]) - np.min(lows[q4_start:q4_end])
-        
-        # ตรวจสอบว่ามี Diamond pattern
-        # q2 > q1, q3 >= q2, q4 < q3
-        if not (q2_range > q1_range and q3_range >= q2_range and q4_range < q3_range):
-            print(f"⚠️ Not a Diamond pattern (ranges: {q1_range:.2f}, {q2_range:.2f}, {q3_range:.2f}, {q4_range:.2f})")
+        if len(quarters_volatility) < 4:
+            print("⚠️ Cannot divide into 4 quarters")
             return
         
-        # หาจุดสำคัญของ Diamond
-        # จุดซ้ายบน-ล่าง (expanding phase)
-        left_start = q1_start
-        left_mid = (q1_start + q2_end) // 2
+        q1, q2, q3, q4 = quarters_volatility
         
-        left_high = np.max(highs[q1_start:q2_end])
-        left_low = np.min(lows[q1_start:q2_end])
-        left_high_idx = q1_start + np.argmax(highs[q1_start:q2_end])
-        left_low_idx = q1_start + np.argmin(lows[q1_start:q2_end])
+        print(f"🔍 Diamond volatility: Q1={q1['volatility']:.2f}, Q2={q2['volatility']:.2f}, Q3={q3['volatility']:.2f}, Q4={q4['volatility']:.2f}")
         
-        # จุดกลาง (widest point)
-        mid_high = np.max(highs[q2_end:q3_end])
-        mid_low = np.min(lows[q2_end:q3_end])
-        mid_high_idx = q2_end + np.argmax(highs[q2_end:q3_end])
-        mid_low_idx = q2_end + np.argmin(lows[q2_end:q3_end])
+        # ✅ ตรวจสอบ pattern: Q2 > Q1, Q3 >= Q2 (expansion), Q4 < Q3 (contraction)
+        is_expanding = q2['volatility'] > q1['volatility'] * 0.95 and q3['volatility'] >= q2['volatility'] * 0.95
+        is_contracting = q4['volatility'] < q3['volatility'] * 0.85
         
-        # จุดขวา (contracting phase)
-        right_high = np.max(highs[q3_end:q4_end])
-        right_low = np.min(lows[q3_end:q4_end])
-        right_high_idx = q3_end + np.argmax(highs[q3_end:q4_end])
-        right_low_idx = q3_end + np.argmin(lows[q3_end:q4_end])
+        if not (is_expanding and is_contracting):
+            print(f"⚠️ Not a Diamond pattern (expanding={is_expanding}, contracting={is_contracting})")
+            return
         
-        # 💎 วาดรูปเพชร
-        # Upper lines
-        ax.plot([left_start, mid_high_idx], 
-               [(left_high + left_low)/2, mid_high],
+        # 📍 หาจุดสำคัญของ Diamond
+        # จุดซ้าย (start point)
+        left_idx = q1['start']
+        left_price = (highs[left_idx] + lows[left_idx]) / 2
+        
+        # จุดกลาง (widest point - Q3)
+        mid_high_idx = q3['start'] + np.argmax(highs[q3['start']:q3['end']])
+        mid_low_idx = q3['start'] + np.argmin(lows[q3['start']:q3['end']])
+        mid_high = highs[mid_high_idx]
+        mid_low = lows[mid_low_idx]
+        
+        # จุดขวา (apex - current)
+        right_idx = len(highs) - 1
+        right_price = closes[-1]
+        
+        # 💎 วาดรูปเพชร (4 เส้น)
+        # Upper left to top
+        ax.plot([left_idx, mid_high_idx], 
+               [left_price, mid_high],
                color='#ff00ff', linestyle='-', linewidth=3,
                alpha=0.9, zorder=10)
         
-        ax.plot([mid_high_idx, q4_end], 
-               [mid_high, (right_high + right_low)/2],
+        # Top to upper right
+        ax.plot([mid_high_idx, right_idx], 
+               [mid_high, right_price],
                color='#ff00ff', linestyle='-', linewidth=3,
                alpha=0.9, zorder=10)
         
-        # Lower lines
-        ax.plot([left_start, mid_low_idx], 
-               [(left_high + left_low)/2, mid_low],
+        # Lower left to bottom
+        ax.plot([left_idx, mid_low_idx], 
+               [left_price, mid_low],
                color='#ff00ff', linestyle='-', linewidth=3,
                alpha=0.9, zorder=10)
         
-        ax.plot([mid_low_idx, q4_end], 
-               [mid_low, (right_high + right_low)/2],
+        # Bottom to lower right
+        ax.plot([mid_low_idx, right_idx], 
+               [mid_low, right_price],
                color='#ff00ff', linestyle='-', linewidth=3,
                alpha=0.9, zorder=10)
+        
         # 💎 วาดจุดสำคัญ
         # จุดซ้าย
-        ax.scatter([left_start], [(left_high + left_low)/2], 
-                  color='#ff00ff', s=180, marker='D',
-                  edgecolors='white', linewidths=2, zorder=15)
+        ax.scatter([left_idx], [left_price], 
+                  color='#ff00ff', s=200, marker='D',
+                  edgecolors='white', linewidths=3, zorder=15)
         
-        # จุดบน-ล่างกลาง (widest)
+        ax.text(left_idx, left_price, 
+               'START', ha='right', va='center',
+               color='#ff00ff', fontweight='bold', fontsize=10,
+               bbox=dict(boxstyle='round,pad=0.4', 
+                        facecolor='black', 
+                        edgecolor='#ff00ff',
+                        alpha=0.9, linewidth=2))
+        
+        # จุดบน (widest top)
         ax.scatter([mid_high_idx], [mid_high], 
-                  color='#ff00ff', s=220, marker='D',
+                  color='#ff00ff', s=280, marker='D',
                   edgecolors='white', linewidths=3, label='Diamond Top', zorder=15)
         
+        ax.text(mid_high_idx, mid_high + 10, 
+               '💎 TOP', ha='center', va='bottom',
+               color='#ff00ff', fontweight='bold', fontsize=12,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='#ff00ff', 
+                        edgecolor='white',
+                        alpha=0.95, linewidth=3))
+        
+        # จุดล่าง (widest bottom)
         ax.scatter([mid_low_idx], [mid_low], 
-                  color='#ff00ff', s=220, marker='D',
+                  color='#ff00ff', s=280, marker='D',
                   edgecolors='white', linewidths=3, label='Diamond Bottom', zorder=15)
         
-        ax.text(mid_high_idx, mid_high + 8, 
-               '💎 TOP', ha='center', va='bottom',
-               color='#ff00ff', fontweight='bold', fontsize=11,
-               bbox=dict(boxstyle='round,pad=0.4', facecolor='black', alpha=0.9))
-        
-        ax.text(mid_low_idx, mid_low - 8, 
+        ax.text(mid_low_idx, mid_low - 10, 
                '💎 BOTTOM', ha='center', va='top',
-               color='#ff00ff', fontweight='bold', fontsize=11,
-               bbox=dict(boxstyle='round,pad=0.4', facecolor='black', alpha=0.9))
+               color='#ff00ff', fontweight='bold', fontsize=12,
+               bbox=dict(boxstyle='round,pad=0.5', 
+                        facecolor='#ff00ff', 
+                        edgecolor='white',
+                        alpha=0.95, linewidth=3))
         
-        # จุดขวา (apex)
-        ax.scatter([q4_end], [(right_high + right_low)/2], 
-                  color='#ff00ff', s=180, marker='D',
-                  edgecolors='white', linewidths=2, zorder=15)
+        # จุดขวา (apex - current)
+        ax.scatter([right_idx], [right_price], 
+                  color='#ffff00', s=250, marker='*',
+                  edgecolors='white', linewidths=3, label='Apex (Breakout)', zorder=15)
+        
+        ax.text(right_idx, right_price + 10, 
+               '⭐ APEX', ha='center', va='bottom',
+               color='#ffff00', fontweight='bold', fontsize=11,
+               bbox=dict(boxstyle='round,pad=0.4', 
+                        facecolor='black', 
+                        edgecolor='#ffff00',
+                        alpha=0.9, linewidth=2))
         
         # 📊 Main Label
-        mid_x = (left_start + q4_end) / 2
+        mid_x = (left_idx + right_idx) / 2
         mid_y = (mid_high + mid_low) / 2
         
-        volatility_info = f"Peak Vol: {q3_range:.2f}\nCurrent: {q4_range:.2f}"
+        volatility_info = f"Peak Vol: {q3['volatility']:.2f}\nCurrent: {q4['volatility']:.2f}"
+        convergence_pct = ((q4['volatility'] / q3['volatility']) - 1) * 100
         
         ax.text(mid_x, mid_y, 
-               f'💎 DIAMOND\n{volatility_info}', 
+               f'💎 DIAMOND\n{volatility_info}\nConverging: {convergence_pct:.1f}%', 
                ha='center', va='center',
-               color='#ff00ff', fontweight='bold', fontsize=13,
+               color='#ff00ff', fontweight='bold', fontsize=12,
                bbox=dict(boxstyle='round,pad=0.7', 
                         facecolor='black', edgecolor='#ff00ff',
-                        alpha=0.9, linewidth=2))
+                        alpha=0.95, linewidth=2))
         
         # 🎯 Breakout Targets
         diamond_height = mid_high - mid_low
-        current_mid = (right_high + right_low) / 2
         
-        target_up = current_mid + diamond_height
-        target_down = current_mid - diamond_height
+        target_up = right_price + diamond_height
+        target_down = right_price - diamond_height
         
         ax.axhline(y=target_up, color='#00ff00', linestyle=':', 
                   linewidth=2, alpha=0.7, label=f'Up Target: ${target_up:.2f}')
@@ -2129,7 +2156,7 @@ def draw_diamond_on_chart(ax, df):
         ax.axhline(y=target_down, color='#ff0000', linestyle=':', 
                   linewidth=2, alpha=0.7, label=f'Down Target: ${target_down:.2f}')
         
-        print(f"✅ Diamond drawn: Vol expanded {q1_range:.2f}→{q3_range:.2f}→{q4_range:.2f}")
+        print(f"✅ Diamond drawn: Expansion Q1→Q3 ({q1['volatility']:.2f}→{q3['volatility']:.2f}), Contraction Q4 ({q4['volatility']:.2f})")
         
     except Exception as e:
         print(f"❌ Draw Diamond error: {e}")
