@@ -10892,6 +10892,40 @@ def send_telegram(message: str) -> int:
         print(f"Telegram send error: {e}")
         return 500
 
+def detect_pattern(df):
+    """Simple pattern detection for AI"""
+    try:
+        highs = df['high'].values
+        closes = df['close'].values
+        
+        if len(highs) < 20:
+            return "NO_PATTERN", 50, False
+        
+        # Double Top Detection
+        peaks = []
+        for i in range(2, len(highs)-2):
+            if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+                peaks.append((i, highs[i]))
+        
+        if len(peaks) >= 2:
+            peaks_sorted = sorted(peaks, key=lambda x: x[1], reverse=True)[:2]
+            if abs(peaks_sorted[0][1] - peaks_sorted[1][1]) / peaks_sorted[0][1] < 0.01:
+                return "DOUBLE_TOP", 85, True
+        
+        # Bull/Bear Flag Detection
+        if len(closes) >= 25:
+            flagpole_move = closes[-15] - closes[-25]
+            if flagpole_move > closes[-25] * 0.03:
+                return "BULL_FLAG", 75, False
+            elif flagpole_move < -closes[-25] * 0.03:
+                return "BEAR_FLAG", 75, False
+        
+        return "NO_PATTERN", 50, False
+        
+    except Exception as e:
+        print(f"Pattern detection error: {e}")
+        return "NO_PATTERN", 50, False
+
 # ====================== Flask Routes ======================
 # ====================== Flask Routes (Enhanced) ======================
 # ============================================
