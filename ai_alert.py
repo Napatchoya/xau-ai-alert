@@ -10894,26 +10894,81 @@ def send_telegram(message: str) -> int:
 
 # ====================== Flask Routes ======================
 # ====================== Flask Routes (Enhanced) ======================
+# ============================================
+# Flask Route NO.1: API Status Endpoint (JSON)
+# ============================================
+# นำโค้ดนี้ไปแทนที่ @app.route('/') แบบเก่าของ NO.1
 
-@app.route('/')
-def home():
-    return jsonify({
-        "status": "running",
-        "system": "XAU/USD AI Multi-LLM Trading System",
-        "original_system": "active",
-        "ai_system": "active",
-        "analysts": ["OpenAI GPT-4", "Google Gemini", "DeepSeek", "Grok"],
-        "last_ai_analysis": len(ai_analysis_history)
-    })
-
-@app.route('/analyze', methods=['GET'])
-def manual_analyze():
-    """Trigger manual AI analysis"""
+@app.route('/api/status')
+def api_status():
+    """
+    JSON API endpoint for system status
+    Returns comprehensive system information in JSON format
+    
+    Usage:
+        GET /api/status
+        
+    Returns:
+        JSON object with system status, AI configuration, and statistics
+    """
     try:
-        asyncio.run(run_ai_analysis())
-        return jsonify({"status": "success", "message": "AI analysis completed"})
+        return jsonify({
+            "status": "running",
+            "system": "XAU/USD AI Multi-LLM Trading System",
+            "version": "4.0",
+            "systems": {
+                "original_system": "active",
+                "pattern_system": "active",
+                "harmonic_system": "active",
+                "ai_multi_llm": "active"
+            },
+            "ai_analysts": [
+                "OpenAI GPT-4",
+                "Google Gemini",
+                "DeepSeek AI",
+                "Grok (xAI)"
+            ],
+            "statistics": {
+                "total_ai_analyses": len(ai_analysis_history),
+                "last_analysis_time": ai_analysis_history[-1]['timestamp'].isoformat() if ai_analysis_history else None
+            },
+            "ai_configuration": {
+                "openai": {
+                    "configured": bool(OPENAI_API_KEY and HAS_OPENAI),
+                    "status": "✅ Active" if (OPENAI_API_KEY and HAS_OPENAI) else "⚠️ Fallback Mode"
+                },
+                "gemini": {
+                    "configured": bool(GEMINI_API_KEY and HAS_GEMINI),
+                    "status": "✅ Active" if (GEMINI_API_KEY and HAS_GEMINI) else "⚠️ Fallback Mode"
+                },
+                "deepseek": {
+                    "configured": bool(DEEPSEEK_API_KEY),
+                    "status": "✅ Active" if DEEPSEEK_API_KEY else "⚠️ Fallback Mode"
+                },
+                "grok": {
+                    "configured": bool(GROK_API_KEY),
+                    "status": "✅ Active" if GROK_API_KEY else "⚠️ Fallback Mode"
+                }
+            },
+            "endpoints": {
+                "home": "/",
+                "api_status": "/api/status",
+                "ai_analyze": "/analyze",
+                "ai_history": "/history",
+                "test_ai": "/test-ai",
+                "health": "/health",
+                "original_ai": "/run-ai",
+                "pattern_bot": "/run-pattern-bot",
+                "harmonic_bot": "/run-harmonic-bot"
+            },
+            "timestamp": datetime.now(ZoneInfo("Asia/Bangkok")).isoformat()
+        })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 
 @app.route('/history', methods=['GET'])
 def get_history():
@@ -12176,165 +12231,539 @@ def system_status():
             "message": str(e)
         }), 500
 
+# ============================================
+# Flask Route NO.2: Home Page (HTML Interface)
+# ============================================
+# นำโค้ดนี้ไปแทนที่ @app.route('/') แบบเก่าของ NO.2
+
 @app.route('/')
 def home():
-    """Home page with API documentation"""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>XAU AI Trading Bot v3.0</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background-color: #0a0a0a; color: #ffffff; }
-            .container { max-width: 900px; margin: 0 auto; }
-            h1 { color: #00ff88; text-align: center; text-shadow: 0 0 10px #00ff88; }
-            h2 { color: #ffaa00; border-bottom: 2px solid #ffaa00; padding-bottom: 10px; }
-            .endpoint { background-color: #1a1a1a; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #00ff88; }
-            .harmonic-endpoint { border-left: 4px solid #ff00ff; }
-            .method { display: inline-block; background-color: #007acc; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-            .new-badge { background-color: #ff00ff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; margin-left: 10px; }
-            .status { color: #00ff88; font-weight: bold; }
-            .warning { color: #ffaa00; }
-            code { background-color: #2a2a2a; padding: 2px 6px; border-radius: 3px; }
-            .pattern-list { background-color: #1a1a1a; padding: 15px; border-radius: 8px; border: 2px solid #ff00ff; }
-            .setup-box { background-color: #1a1a1a; padding: 20px; border-radius: 8px; border-left: 4px solid #00ff88; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🤖 XAU AI Trading Bot v3.0</h1>
-            <p class="status">✅ System Online | Triple Hybrid AI Trading System</p>
+    """
+    Home page with comprehensive HTML interface
+    Displays system documentation, API endpoints, and AI status
+    
+    Usage:
+        GET /
+        
+    Returns:
+        HTML page with full system documentation
+    """
+    try:
+        # Get AI configuration status
+        ai_status = {
+            'openai': '✅ Active' if (OPENAI_API_KEY and HAS_OPENAI) else '⚠️ Fallback',
+            'gemini': '✅ Active' if (GEMINI_API_KEY and HAS_GEMINI) else '⚠️ Fallback',
+            'deepseek': '✅ Active' if DEEPSEEK_API_KEY else '⚠️ Fallback',
+            'grok': '✅ Active' if GROK_API_KEY else '⚠️ Fallback'
+        }
+        
+        total_analyses = len(ai_analysis_history)
+        last_analysis = ai_analysis_history[-1]['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if ai_analysis_history else 'No analyses yet'
+        
+        html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XAU AI Trading Bot v4.0 - Multi-LLM Edition</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }}
+        
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        
+        header {{
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #00ff88 0%, #00ddff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }}
+        
+        h1 {{
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            margin-bottom: 10px;
+        }}
+        
+        .status-badge {{
+            display: inline-block;
+            background: linear-gradient(135deg, #00ff88, #00ddff);
+            color: #0a0a0a;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }}
+        
+        .grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }}
+        
+        .card {{
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 12px;
+            padding: 25px;
+            border-left: 4px solid #00ff88;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }}
+        
+        .card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+        }}
+        
+        .card.ai-card {{
+            border-left-color: #00ddff;
+        }}
+        
+        .card.harmonic-card {{
+            border-left-color: #ff00ff;
+        }}
+        
+        .card-title {{
+            font-size: 1.3em;
+            color: #00ff88;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        
+        .ai-card .card-title {{
+            color: #00ddff;
+        }}
+        
+        .harmonic-card .card-title {{
+            color: #ff00ff;
+        }}
+        
+        .endpoint {{
+            background: rgba(10, 10, 10, 0.6);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 3px solid #00ff88;
+            transition: all 0.3s ease;
+        }}
+        
+        .endpoint:hover {{
+            background: rgba(0, 255, 136, 0.1);
+            border-left-width: 5px;
+        }}
+        
+        .endpoint.ai-endpoint {{
+            border-left-color: #00ddff;
+        }}
+        
+        .endpoint.harmonic-endpoint {{
+            border-left-color: #ff00ff;
+        }}
+        
+        .method {{
+            display: inline-block;
+            background: #007acc;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 10px;
+        }}
+        
+        .badge {{
+            display: inline-block;
+            background: #ff00ff;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: bold;
+            margin-left: 8px;
+        }}
+        
+        .ai-status-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }}
+        
+        .ai-item {{
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        
+        .pattern-list {{
+            background: rgba(255, 0, 255, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #ff00ff;
+            margin: 20px 0;
+        }}
+        
+        .pattern-list ul {{
+            list-style: none;
+            padding-left: 0;
+        }}
+        
+        .pattern-list li {{
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 0, 255, 0.2);
+        }}
+        
+        .pattern-list li:last-child {{
+            border-bottom: none;
+        }}
+        
+        .stats-box {{
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 221, 255, 0.1));
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px solid #00ddff;
+        }}
+        
+        .stats-item {{
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }}
+        
+        .stats-item:last-child {{
+            border-bottom: none;
+        }}
+        
+        .warning-box {{
+            background: rgba(255, 170, 0, 0.1);
+            border: 2px solid #ffaa00;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }}
+        
+        footer {{
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 50px;
+        }}
+        
+        a {{
+            color: #00ddff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }}
+        
+        a:hover {{
+            color: #00ff88;
+        }}
+        
+        code {{
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+        }}
+        
+        @media (max-width: 768px) {{
+            h1 {{
+                font-size: 2em;
+            }}
             
-            <h2>🎯 Trading Systems</h2>
+            .grid {{
+                grid-template-columns: 1fr;
+            }}
+            
+            .ai-status-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 XAU AI Trading Bot v4.0</h1>
+            <div class="status-badge">✅ System Online - Multi-LLM Edition</div>
+        </header>
+        
+        <!-- AI Multi-Agent Status -->
+        <div class="card ai-card">
+            <div class="card-title">
+                🧠 AI Multi-Agent System
+            </div>
+            <div class="stats-box">
+                <div class="stats-item">
+                    <span><strong>Total AI Analyses:</strong></span>
+                    <span style="color: #00ff88; font-weight: bold;">{total_analyses}</span>
+                </div>
+                <div class="stats-item">
+                    <span><strong>Last Analysis:</strong></span>
+                    <span style="color: #00ddff;">{last_analysis}</span>
+                </div>
+            </div>
+            
+            <h4 style="color: #00ddff; margin: 20px 0 10px 0;">Active AI Agents:</h4>
+            <div class="ai-status-grid">
+                <div class="ai-item">
+                    <span>🇺🇸 OpenAI GPT-4</span>
+                    <span>{ai_status['openai']}</span>
+                </div>
+                <div class="ai-item">
+                    <span>🇬🇧 Google Gemini</span>
+                    <span>{ai_status['gemini']}</span>
+                </div>
+                <div class="ai-item">
+                    <span>🇨🇳 DeepSeek AI</span>
+                    <span>{ai_status['deepseek']}</span>
+                </div>
+                <div class="ai-item">
+                    <span>🇺🇸 Grok (xAI)</span>
+                    <span>{ai_status['grok']}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trading Systems -->
+        <h2 style="color: #ffaa00; margin: 40px 0 20px 0; text-align: center;">🎯 Trading Systems</h2>
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">📊 System 1</div>
+                <p><strong>RSI + EMA + Price Change Analysis</strong></p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: 10px;">
+                    Machine learning-based technical analysis using RSI indicators and moving averages.
+                </p>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📈 System 2</div>
+                <p><strong>Classic Chart Pattern Detection</strong></p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: 10px;">
+                    Detects traditional patterns: Double Top/Bottom, Head & Shoulders, Triangles, Flags, etc.
+                </p>
+            </div>
+            
+            <div class="card harmonic-card">
+                <div class="card-title">🌟 System 3</div>
+                <p><strong>Harmonic + Elliott Wave</strong></p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: 10px;">
+                    Advanced Fibonacci-based patterns: Gartley, Butterfly, Bat, Crab, AB=CD, Elliott Wave.
+                </p>
+            </div>
+            
+            <div class="card ai-card">
+                <div class="card-title">🤖 System 4 <span class="badge">NEW!</span></div>
+                <p><strong>Multi-LLM AI Consensus</strong></p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: 10px;">
+                    4 AI agents analyze market data and vote on trading decisions with confidence scores.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Harmonic Patterns -->
+        <div class="pattern-list">
+            <h3 style="color: #ff00ff; margin-top: 0;">🌟 Harmonic Patterns Detected</h3>
             <ul>
-                <li><strong>System 1:</strong> RSI + EMA + Price Change Analysis</li>
-                <li><strong>System 2:</strong> Classic Chart Pattern Detection</li>
-                <li><strong>System 3:</strong> <span style="color:#ff00ff;">⭐ Harmonic Patterns + Elliott Wave</span> <span class="new-badge">NEW!</span></li>
+                <li>🦋 <strong>GARTLEY</strong> - 61.8% XA retracement (High accuracy)</li>
+                <li>🦋 <strong>BUTTERFLY</strong> - 127-161.8% XA extension</li>
+                <li>🦇 <strong>BAT</strong> - 88.6% XA retracement</li>
+                <li>🦀 <strong>CRAB</strong> - 161.8% XA extension (Extreme reversal)</li>
+                <li>📐 <strong>AB=CD</strong> - Equal leg structure pattern</li>
+                <li>🌊 <strong>ELLIOTT WAVE 5</strong> - Impulse wave pattern</li>
+                <li>🌊 <strong>ELLIOTT WAVE 3</strong> - Corrective wave (ABC)</li>
             </ul>
-            
-            <div class="pattern-list">
-                <h3 style="color:#ff00ff; margin-top:0;">🌟 Harmonic Patterns Detected:</h3>
-                <ul>
-                    <li>🦋 <strong>GARTLEY</strong> - 61.8% XA retracement (High accuracy)</li>
-                    <li>🦋 <strong>BUTTERFLY</strong> - 127-161.8% XA extension</li>
-                    <li>🦇 <strong>BAT</strong> - 88.6% XA retracement</li>
-                    <li>🦀 <strong>CRAB</strong> - 161.8% XA extension (Extreme)</li>
-                    <li>📐 <strong>AB=CD</strong> - Equal leg structure</li>
-                    <li>🌊 <strong>ELLIOTT WAVE 5</strong> - Impulse wave pattern</li>
-                    <li>🌊 <strong>ELLIOTT WAVE 3</strong> - Corrective wave (ABC)</li>
-                </ul>
-            </div>
-            
-            <h2>📡 API Endpoints</h2>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/health</strong>
-                <p>Health check endpoint for monitoring</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/run-ai</strong>
-                <p><span class="status">ACTIVE:</span> Original AI System</p>
-                <p><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/run-pattern-bot</strong>
-                <p><span class="status">ACTIVE:</span> Classic Pattern AI</p>
-                <p><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour</p>
-            </div>
-            
-            <div class="endpoint harmonic-endpoint">
-                <span class="method">GET</span> <strong>/run-harmonic-bot</strong> <span class="new-badge">NEW!</span>
-                <p><span class="status">ACTIVE:</span> Harmonic + Elliott Wave AI</p>
-                <p><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour</p>
-                <p style="color:#ff00ff;"><strong>📊 Patterns:</strong> GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD, ELLIOTT WAVE</p>
-            </div>
-            
-            <h3>🧪 Test Endpoints</h3>
-            
-            <div class="endpoint harmonic-endpoint">
-                <span class="method">GET</span> <strong>/test-harmonic</strong> <span class="new-badge">NEW!</span>
-                <p>Test harmonic pattern detection (JSON response)</p>
-            </div>
-            
-            <div class="endpoint harmonic-endpoint">
-                <span class="method">GET</span> <strong>/test-harmonic-send</strong> <span class="new-badge">NEW!</span>
-                <p>Test sending harmonic patterns to Telegram</p>
-            </div>
-            
-            <div class="endpoint harmonic-endpoint">
-                <span class="method">GET</span> <strong>/test-specific-harmonic?pattern=GARTLEY</strong> <span class="new-badge">NEW!</span>
-                <p>Test specific harmonic pattern</p>
-                <p><em>Parameters:</em> GARTLEY, BUTTERFLY, BAT, CRAB, AB_CD</p>
-            </div>
-            
-            <div class="endpoint harmonic-endpoint">
-                <span class="method">GET</span> <strong>/harmonic-status</strong> <span class="new-badge">NEW!</span>
-                <p>Get current harmonic pattern analysis status</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/test-telegram</strong>
-                <p>Test Telegram connection</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/pattern-status</strong>
-                <p>Get classic pattern analysis status</p>
-            </div>
-            
-            <div class="endpoint">
-                <span class="method">GET</span> <strong>/status</strong>
-                <p>Get comprehensive system status</p>
-            </div>
-            
-            <div class="setup-box">
-                <h2 style="margin-top:0; color:#ff00ff;">⚡ UptimeRobot Setup (3 Systems)</h2>
-                
-                <p><strong>Monitor 1:</strong> <code>/run-ai</code> → Every 3 minutes</p>
-                <p style="margin-left:20px;">→ Original AI signals (RSI+EMA)</p>
-                
-                <p><strong>Monitor 2:</strong> <code>/run-pattern-bot</code> → Every 3 minutes</p>
-                <p style="margin-left:20px;">→ Classic pattern signals</p>
-                
-                <p><strong style="color:#ff00ff;">Monitor 3:</strong> <code>/run-harmonic-bot</code> → Every 3 minutes <span class="new-badge">NEW!</span></p>
-                <p style="margin-left:20px; color:#ff00ff;">→ <strong>Harmonic + Elliott Wave signals</strong></p>
-                
-                <h3 style="color:#00ff88;">📊 Expected Results:</h3>
-                <ul>
-                    <li>🤖 <strong>1 signal/hour:</strong> Original AI (RSI+EMA)</li>
-                    <li>📈 <strong>1 signal/hour:</strong> Classic Patterns</li>
-                    <li style="color:#ff00ff;">🎯 <strong>1 signal/hour:</strong> Harmonic + Elliott Wave</li>
-                </ul>
-                <p style="color:#00ff88; font-weight:bold;">✅ Total: 3 independent signals per hour!</p>
-                
-                <h3 style="color:#ffaa00;">🎯 Why 3 Systems?</h3>
-                <ul>
-                    <li>Different analysis methods = Better market coverage</li>
-                    <li>ML vs Rule-based vs Fibonacci = Multiple perspectives</li>
-                    <li>Confirmation signals = Higher confidence trades</li>
-                    <li>Never miss opportunities = 24/7 monitoring</li>
-                </ul>
-            </div>
-            
-            <h2>⚠️ Risk Disclaimer</h2>
-            <p class="warning">
-                This is an automated trading bot for educational purposes. 
-                Harmonic patterns and Elliott Wave analysis require experience. 
-                Always use proper risk management (1-2% per trade). 
-                Past performance does not guarantee future results.
-            </p>
-            
-            <hr style="border-color: #444; margin: 40px 0;">
-            <p style="text-align: center; color: #666;">
-                🚀 XAU AI Trading Bot v3.0 | Powered by Advanced Pattern Detection
+        </div>
+        
+        <!-- API Endpoints -->
+        <h2 style="color: #ffaa00; margin: 40px 0 20px 0; text-align: center;">📡 API Endpoints</h2>
+        
+        <h3 style="color: #00ddff; margin: 30px 0 15px 0;">🤖 AI Multi-LLM Endpoints</h3>
+        
+        <div class="endpoint ai-endpoint">
+            <span class="method">GET</span> <strong>/analyze</strong> <span class="badge">AI</span>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>Trigger AI Multi-LLM Analysis:</strong> Queries all 4 AI agents and returns consensus decision with trading signals.
             </p>
         </div>
-    </body>
-    </html>
-    """
-    return html_content
+        
+        <div class="endpoint ai-endpoint">
+            <span class="method">GET</span> <strong>/history</strong> <span class="badge">AI</span>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>View AI Analysis History:</strong> Returns the last 10 AI analyses with timestamps and decisions.
+            </p>
+        </div>
+        
+        <div class="endpoint ai-endpoint">
+            <span class="method">GET</span> <strong>/test-ai</strong> <span class="badge">AI</span>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>Test AI Configurations:</strong> Check which AI APIs are properly configured.
+            </p>
+        </div>
+        
+        <div class="endpoint ai-endpoint">
+            <span class="method">GET</span> <strong>/api/status</strong>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>System Status (JSON):</strong> Comprehensive system information in JSON format.
+            </p>
+        </div>
+        
+        <h3 style="color: #00ff88; margin: 30px 0 15px 0;">📊 Original Systems</h3>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <strong>/health</strong>
+            <p style="margin-top: 10px; color: #ddd;">Health check endpoint for monitoring</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <strong>/run-ai</strong>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>Original AI System:</strong> RSI + EMA analysis
+                <br><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour
+            </p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <strong>/run-pattern-bot</strong>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>Classic Pattern AI:</strong> Traditional chart patterns
+                <br><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour
+            </p>
+        </div>
+        
+        <div class="endpoint harmonic-endpoint">
+            <span class="method">GET</span> <strong>/run-harmonic-bot</strong>
+            <p style="margin-top: 10px; color: #ddd;">
+                <strong>Harmonic + Elliott Wave AI:</strong> Advanced Fibonacci patterns
+                <br><em>Frequency:</em> Every 3 minutes | <em>Output:</em> Once per hour
+            </p>
+        </div>
+        
+        <h3 style="color: #ff00ff; margin: 30px 0 15px 0;">🧪 Test Endpoints</h3>
+        
+        <div class="endpoint harmonic-endpoint">
+            <span class="method">GET</span> <strong>/test-harmonic</strong>
+            <p style="margin-top: 10px; color: #ddd;">Test harmonic pattern detection (JSON response)</p>
+        </div>
+        
+        <div class="endpoint harmonic-endpoint">
+            <span class="method">GET</span> <strong>/test-specific-harmonic?pattern=GARTLEY</strong>
+            <p style="margin-top: 10px; color: #ddd;">
+                Test specific harmonic pattern
+                <br><em>Parameters:</em> GARTLEY, BUTTERFLY, BAT, CRAB, AB_CD
+            </p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <strong>/test-telegram</strong>
+            <p style="margin-top: 10px; color: #ddd;">Test Telegram connection</p>
+        </div>
+        
+        <!-- Setup Guide -->
+        <div class="card ai-card" style="margin-top: 40px;">
+            <div class="card-title">⚡ UptimeRobot Setup Guide</div>
+            <p style="margin-bottom: 20px;">Configure 4 monitors for complete system coverage:</p>
+            
+            <div style="margin: 15px 0;">
+                <strong style="color: #00ff88;">Monitor 1:</strong> <code>/run-ai</code> → Every 3 minutes
+                <br><span style="color: #aaa; margin-left: 20px;">→ Original AI signals (RSI+EMA)</span>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <strong style="color: #00ff88;">Monitor 2:</strong> <code>/run-pattern-bot</code> → Every 3 minutes
+                <br><span style="color: #aaa; margin-left: 20px;">→ Classic pattern signals</span>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <strong style="color: #ff00ff;">Monitor 3:</strong> <code>/run-harmonic-bot</code> → Every 3 minutes
+                <br><span style="color: #aaa; margin-left: 20px;">→ Harmonic + Elliott Wave signals</span>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <strong style="color: #00ddff;">Monitor 4:</strong> <code>/analyze</code> → Every 1 hour <span class="badge">AI</span>
+                <br><span style="color: #aaa; margin-left: 20px;">→ Multi-LLM consensus signals</span>
+            </div>
+            
+            <div class="stats-box" style="margin-top: 25px;">
+                <h4 style="color: #00ff88; margin-bottom: 15px;">📊 Expected Results:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0;">🤖 <strong>1 signal/hour:</strong> Original AI (RSI+EMA)</li>
+                    <li style="padding: 8px 0;">📈 <strong>1 signal/hour:</strong> Classic Patterns</li>
+                    <li style="padding: 8px 0; color: #ff00ff;">🎯 <strong>1 signal/hour:</strong> Harmonic + Elliott Wave</li>
+                    <li style="padding: 8px 0; color: #00ddff;">🧠 <strong>1 signal/hour:</strong> Multi-LLM Consensus</li>
+                </ul>
+                <p style="color: #00ff88; font-weight: bold; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    ✅ Total: 4 independent signals per hour!
+                </p>
+            </div>
+        </div>
+        
+        <!-- Risk Disclaimer -->
+        <div class="warning-box">
+            <h3 style="color: #ffaa00; margin-top: 0;">⚠️ Risk Disclaimer</h3>
+            <p>
+                This is an automated AI trading bot for <strong>educational and research purposes</strong>. 
+                AI-generated signals are not financial advice. Harmonic patterns and Elliott Wave analysis 
+                require experience and interpretation. Always use proper risk management (1-2% per trade). 
+                Past performance does not guarantee future results. Trade at your own risk.
+            </p>
+        </div>
+        
+        <footer>
+            <p>🚀 <strong>XAU AI Trading Bot v4.0</strong></p>
+            <p style="margin-top: 10px;">Powered by Multi-LLM Technology | Advanced Pattern Detection</p>
+            <p style="margin-top: 20px; font-size: 0.9em;">
+                <a href="/api/status">JSON API</a> | 
+                <a href="/analyze">Trigger Analysis</a> | 
+                <a href="/history">View History</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
+"""
+        return html_content
+        
+    except Exception as e:
+        return f"""
+        <html>
+        <body style="background: #0a0a0a; color: #ff4444; font-family: monospace; padding: 40px;">
+            <h1>⚠️ Error Loading Home Page</h1>
+            <p>{str(e)}</p>
+            <a href="/api/status" style="color: #00ddff;">View JSON Status</a>
+        </body>
+        </html>
+        """, 500
+
 
 @app.route('/run-harmonic-bot')
 def run_harmonic_bot():
