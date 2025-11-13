@@ -10817,11 +10817,7 @@ def get_config(section, key=None):
 
 # ============= Final Integration Message =============
 
-if __name__ == "__main__":
-    print("🚀 Advanced Pattern Detection System Loaded Successfully!")
-    print("📚 Run main_pattern_detection_system() to see usage examples")
-    print("🧪 Run test_pattern_detection() to test the system")
-    main_pattern_detection_system()             
+             
 
 # เพิ่มการนับและ Log สำหรับติดตาม
 def log_pattern_detection(all_patterns, telegram_sent=False):
@@ -11077,6 +11073,12 @@ if __name__ == "__main__":
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
     """)
+    
+    
+    # ทดสอบระบบ Pattern Detection (ถ้าต้องการ)
+    # print("📚 Testing Pattern Detection System...")
+    # test_pattern_detection()
+    
     
     print("🔑 Checking API credentials...\n")
     
