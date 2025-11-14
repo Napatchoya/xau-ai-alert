@@ -20,6 +20,10 @@ from scipy import interpolate  # สำหรับ smooth curves
 import base64
 import json
 import asyncio
+from typing import Dict, List, Optional, Tuple
+import anthropic
+from openai import OpenAI
+import google.generativeai as genai
 
 # Try importing optional ML libraries
 try:
