@@ -283,82 +283,127 @@ def get_economic_indicators():
 # ====================== NEW: AI ANALYST CLASSES ======================
 
 class AIAnalyst:
-    """Base class for AI analysts"""
+    """Base class for AI analysts - เวอร์ชันปรับปรุง"""
     
     def __init__(self, name):
         self.name = name
     
-    def create_analysis_prompt(self, market_data):
-        """Create comprehensive prompt for AI"""
-        current_price = market_data['price']
-        indicators = market_data['indicators']
-        pattern = market_data['pattern']
-        news = market_data.get('news', [])
-        economics = market_data.get('economics', {})
-        
-        news_text = "\n".join([f"- {n['title']}" for n in news[:3]]) if news else "No recent news"
-        
-        prompt = f"""You are a professional gold (XAU/USD) trader with 20 years of experience.
+    def create_analysis_prompt(self, market_data, patterns, news, economic_data):
+        """
+        🆕 เพิ่ม parameters: patterns, news, economic_data
+        """
+        prompt = f"""
+Analyze XAU/USD trading opportunity with comprehensive data:
 
-CURRENT MARKET DATA:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Price: ${current_price:,.2f}
+📊 MARKET DATA:
+- Current Price: ${market_data['current_price']:,.2f}
+- RSI: {market_data.get('rsi', 50):.2f}
+- MACD: {market_data.get('macd', 0):.4f}
+- EMA 20: ${market_data.get('ema_20', 0):,.2f}
+- EMA 50: ${market_data.get('ema_50', 0):,.2f}
 
-📈 Technical Indicators:
-• RSI(14): {indicators['rsi']:.2f}
-• MACD: {indicators['macd']:.2f} (Signal: {indicators['macd_signal']:.2f})
-• EMA 10/21/50: ${indicators['ema']:.2f} / ${indicators['ema_21']:.2f} / ${indicators['ema_50']:.2f}
-• ATR: {indicators['atr']:.2f}
-• Bollinger Bands: ${indicators['bb_lower']:.2f} - ${indicators['bb_upper']:.2f}
+🕯️ CANDLESTICK PATTERNS:
+{self._format_candlestick_patterns(patterns.get('candlestick', []))}
 
-🎯 Chart Pattern: {pattern['name']} (Confidence: {pattern['confidence']}%)
+📐 HARMONIC PATTERNS:
+{self._format_harmonic_patterns(patterns.get('harmonic', []))}
 
-🌍 Economic Factors:
-{chr(10).join([f"• {k}: {v}" for k, v in economics.items()])}
+🌊 ELLIOTT WAVE:
+{self._format_elliott_wave(patterns.get('elliott_wave', {}))}
 
-📰 Recent News:
-{news_text}
+📰 MARKET NEWS ({len(news)} articles):
+{self._format_news(news)}
 
-TASK: Analyze and decide BUY, SELL, or HOLD.
+📈 ECONOMIC INDICATORS:
+{self._format_economic(economic_data)}
 
-Respond ONLY in this JSON format (no other text):
+Provide analysis in JSON format:
 {{
-    "action": "BUY/SELL/HOLD",
-    "confidence": 85,
-    "stop_loss_pips": 50,
-    "take_profit_pips": 150,
-    "reasoning": "Brief explanation (max 100 words)"
+    "signal": "BUY/SELL/NEUTRAL",
+    "confidence": 0-100,
+    "entry_price": price,
+    "stop_loss": price,
+    "take_profit_1": price,
+    "take_profit_2": price,
+    "reasoning": {{
+        "candlestick_analysis": "...",
+        "harmonic_analysis": "...",
+        "elliott_wave_analysis": "...",
+        "technical_indicators": "...",
+        "news_sentiment": "...",
+        "economic_impact": "...",
+        "overall_conclusion": "..."
+    }},
+    "risk_level": "LOW/MEDIUM/HIGH"
 }}
 """
         return prompt
     
-    async def analyze(self, market_data):
-        """Analyze market - to be overridden"""
-        raise NotImplementedError
+    def _format_candlestick_patterns(self, patterns):
+        """Format candlestick patterns for prompt"""
+        if not patterns:
+            return "None detected"
+        
+        text = ""
+        for p in patterns[:5]:  # Top 5
+            text += f"\n- {p['name']}: {p['signal']} (Strength: {p['strength']}%)"
+        return text
     
-    def _fallback_analysis(self, market_data):
-        """Simple fallback when API unavailable"""
-        indicators = market_data['indicators']
-        rsi = indicators['rsi']
+    def _format_harmonic_patterns(self, patterns):
+        """Format harmonic patterns with Fibonacci"""
+        if not patterns:
+            return "None detected"
         
-        if rsi < 30:
-            action = "BUY"
-            conf = 70
-        elif rsi > 70:
-            action = "SELL"
-            conf = 70
-        else:
-            action = "HOLD"
-            conf = 50
+        text = ""
+        for p in patterns[:3]:  # Top 3
+            text += f"\n- {p['name']}: {p['signal']}"
+            
+            # เพิ่ม Fibonacci ratios
+            if 'fibonacci_ratios' in p:
+                text += "\n  Fibonacci Ratios:"
+                for ratio_name, ratio_value in p['fibonacci_ratios'].items():
+                    text += f"\n    {ratio_name}: {ratio_value}"
+            
+            # เพิ่ม PRZ
+            if 'prz' in p:
+                text += f"\n  PRZ: ${p['prz']['low']:.2f} - ${p['prz']['high']:.2f}"
+                text += f" (In PRZ: {'Yes ✅' if p['prz']['current_in_prz'] else 'No'})"
+            
+            text += "\n"
         
-        return {
-            "analyst": self.name,
-            "action": action,
-            "confidence": conf,
-            "stop_loss_pips": 50,
-            "take_profit_pips": 100,
-            "reasoning": f"RSI-based decision: {rsi:.1f}"
-        }
+        return text
+    
+    def _format_elliott_wave(self, wave_data):
+        """Format Elliott Wave data"""
+        if not wave_data:
+            return "Not analyzed"
+        
+        return f"""
+- Current Wave: {wave_data.get('current_wave', 'Unknown')}
+- Signal: {wave_data.get('signal', 'NEUTRAL')}
+- Confidence: {wave_data.get('confidence', 0)}%
+"""
+    
+    def _format_news(self, news):
+        """Format news articles"""
+        if not news:
+            return "No recent news"
+        
+        text = ""
+        for i, n in enumerate(news[:5], 1):
+            text += f"\n{i}. {n.get('title', 'N/A')}"
+        return text
+    
+    def _format_economic(self, economic_data):
+        """Format economic indicators"""
+        if not economic_data:
+            return "No data"
+        
+        text = ""
+        for indicator, data in economic_data.items():
+            text += f"\n- {indicator}: {data.get('value', 'N/A')}"
+            text += f" ({data.get('impact', 'N/A')})"
+        return text
 
 class OpenAIAnalyst(AIAnalyst):
     """OpenAI GPT-4 Analyst"""
