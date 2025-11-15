@@ -6011,6 +6011,857 @@ def get_pattern_signal_with_context(pattern_name, pattern_info=None):
     # ถ้าวิเคราะห์ไม่ได้
     return "🟡 WAIT (Cannot Determine Direction)"
 
+
+def create_ai_enhanced_chart(df, consensus, pattern_info):
+    """
+    สร้างกราฟพร้อมแสดงผลการวิเคราะห์ 3 ส่วน:
+    1. Individual AI Analysis พร้อม Reasoning (แสดงแยกทั้ง 5 ตัว)
+    2. Consensus Badge (สรุปรวม)
+    3. Detailed Reasoning Summary (ด้านล่าง)
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        ข้อมูล OHLCV
+    consensus : Dict
+        ผลลัพธ์จาก MultiAnalystSystem.get_consensus()
+    pattern_info : Dict
+        ข้อมูล patterns ที่ตรวจพบ
+    """
+    
+    try:
+        chart_df = df.tail(50).copy()
+        
+        # สร้าง figure ขนาดใหญ่ขึ้นเพื่อแสดง reasoning
+        fig = plt.figure(figsize=(20, 14))
+        
+        # สร้าง GridSpec สำหรับ layout ที่ซับซ้อน
+        import matplotlib.gridspec as gridspec
+        gs = gridspec.GridSpec(3, 2, figure=fig, 
+                              height_ratios=[2.5, 0.8, 1.2],
+                              width_ratios=[1, 1],
+                              hspace=0.3, wspace=0.3)
+        
+        # Main chart (top, spanning both columns)
+        ax1 = fig.add_subplot(gs[0, :])
+        # RSI (middle, spanning both columns)
+        ax2 = fig.add_subplot(gs[1, :])
+        # Reasoning panels (bottom)
+        ax3 = fig.add_subplot(gs[2, 0])  # Left reasoning
+        ax4 = fig.add_subplot(gs[2, 1])  # Right reasoning
+        
+        fig.patch.set_facecolor('#0a0a0a')
+        ax1.set_facecolor('#0a0a0a')
+        ax2.set_facecolor('#0a0a0a')
+        ax3.set_facecolor('#0a0a0a')
+        ax4.set_facecolor('#0a0a0a')
+        
+        # Hide axes for text panels
+        ax3.axis('off')
+        ax4.axis('off')
+        
+        # ═══════════════════════════════════════════════════════════
+        # 1. วาด Candlesticks (เหมือนเดิม)
+        # ═══════════════════════════════════════════════════════════
+        for i, (idx, row) in enumerate(chart_df.iterrows()):
+            color = '#00ff88' if row['close'] >= row['open'] else '#ff4444'
+            
+            body_height = abs(row['close'] - row['open'])
+            body_bottom = min(row['close'], row['open'])
+            
+            ax1.add_patch(patches.Rectangle(
+                (i - 0.3, body_bottom), 0.6, body_height,
+                facecolor=color, edgecolor=color, alpha=0.9
+            ))
+            
+            ax1.plot([i, i], [row['low'], row['high']], 
+                    color=color, linewidth=1.5, alpha=0.7)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 2. วาด EMAs (เหมือนเดิม)
+        # ═══════════════════════════════════════════════════════════
+        if 'ema_20' in chart_df:
+            ax1.plot(range(len(chart_df)), chart_df['ema_20'].values, 
+                    color='#ffaa00', linewidth=2, label='EMA 20', alpha=0.8)
+        if 'ema_50' in chart_df:
+            ax1.plot(range(len(chart_df)), chart_df['ema_50'].values, 
+                    color='#ff6600', linewidth=2, label='EMA 50', alpha=0.8)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 3. วาด Trading Levels (เหมือนเดิม)
+        # ═══════════════════════════════════════════════════════════
+        entry = consensus['entry_price']
+        sl = consensus['stop_loss']
+        tp1 = consensus['take_profit_1']
+        tp2 = consensus['take_profit_2']
+        
+        ax1.axhline(y=entry, color='#ffffff', linestyle='--', 
+                   linewidth=2.5, alpha=0.9, label=f'Entry: ${entry:,.2f}', zorder=5)
+        ax1.axhline(y=tp1, color='#00ff88', linestyle='-', 
+                   linewidth=2, alpha=0.7, label=f'TP1: ${tp1:,.2f}', zorder=5)
+        ax1.axhline(y=tp2, color='#00dd66', linestyle='-', 
+                   linewidth=2, alpha=0.7, label=f'TP2: ${tp2:,.2f}', zorder=5)
+        ax1.axhline(y=sl, color='#ff4444', linestyle='-', 
+                   linewidth=2.5, alpha=0.9, label=f'SL: ${sl:,.2f}', zorder=5)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 4. แสดง Individual AI (ย่อ) ด้านซ้ายบน
+        # ═══════════════════════════════════════════════════════════
+        
+        individual_analyses = consensus.get('individual_analyses', [])
+        
+        if individual_analyses:
+            signal_emojis = {
+                'BUY': '🟢',
+                'SELL': '🔴',
+                'NEUTRAL': '⚪'
+            }
+            
+            # แสดงแค่ชื่อ + Signal + Confidence
+            individual_text = "🤖 AI ANALYSTS\n" + "─" * 20 + "\n"
+            
+            for analysis in individual_analyses:
+                analyst_name = analysis.get('analyst', 'Unknown')
+                signal = analysis.get('signal', 'NEUTRAL')
+                confidence = analysis.get('confidence', 0)
+                
+                emoji = signal_emojis.get(signal, '⚪')
+                short_name = analyst_name.replace('OpenAI ', '').replace('Google ', '').replace('Anthropic ', '')
+                
+                individual_text += f"{emoji} {short_name}: {signal} ({confidence:.0f}%)\n"
+            
+            ax1.text(0.02, 0.98, individual_text,
+                    transform=ax1.transAxes,
+                    verticalalignment='top',
+                    horizontalalignment='left',
+                    color='white',
+                    fontsize=10,
+                    fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.7', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#00aaff',
+                             alpha=0.95, 
+                             linewidth=2),
+                    zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 5. Consensus Badge (เหมือนเดิม)
+        # ═══════════════════════════════════════════════════════════
+        
+        signal_colors = {'BUY': '#00ff88', 'SELL': '#ff4444', 'NEUTRAL': '#ffaa00'}
+        final_signal = consensus['final_signal']
+        signal_color = signal_colors.get(final_signal, '#ffaa00')
+        
+        consensus_text = f"""╔═══ CONSENSUS ═══╗
+
+🎯 {final_signal}
+💪 {consensus['consensus_confidence']:.1f}%
+
+📊 VOTES
+🟢 {consensus['votes']['BUY']} | 🔴 {consensus['votes']['SELL']} | ⚪ {consensus['votes']['NEUTRAL']}
+
+✅ {consensus['agreement_rate']:.0f}% Agree
+👥 {consensus.get('total_analysts', len(individual_analyses))} AIs"""
+        
+        ax1.text(0.98, 0.98, consensus_text,
+                transform=ax1.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                color='white',
+                fontsize=11,
+                fontweight='bold',
+                fontfamily='monospace',
+                bbox=dict(boxstyle='round,pad=0.8', 
+                         facecolor='#1a1a1a', 
+                         edgecolor=signal_color,
+                         alpha=0.95, 
+                         linewidth=3),
+                zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 6. Pattern Info (เหมือนเดิม)
+        # ═══════════════════════════════════════════════════════════
+        
+        pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
+        if pattern_name != 'NO_PATTERN':
+            pattern_text = f"📐 {pattern_name}"
+            ax1.text(0.02, 0.02, pattern_text,
+                    transform=ax1.transAxes,
+                    verticalalignment='bottom',
+                    horizontalalignment='left',
+                    color='#ffaa00',
+                    fontsize=10,
+                    fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.5', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#ffaa00',
+                             alpha=0.9, 
+                             linewidth=2),
+                    zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 7. Chart Styling
+        # ═══════════════════════════════════════════════════════════
+        
+        current_price = consensus.get('current_price', df['close'].iloc[-1])
+        
+        ax1.set_title(
+            f'XAU/USD: ${current_price:,.2f} | {pattern_name} | Consensus: {final_signal}', 
+            color=signal_color, 
+            fontsize=16, 
+            fontweight='bold', 
+            pad=20
+        )
+        
+        ax1.set_ylabel('Price ($)', color='#ffffff', fontsize=12, fontweight='bold')
+        ax1.tick_params(colors='#ffffff', labelsize=10)
+        ax1.grid(True, alpha=0.2, color='#444444', linestyle='--', linewidth=0.5)
+        ax1.legend(loc='lower left', 
+                  facecolor='#2a2a2a', 
+                  edgecolor='#444444', 
+                  labelcolor='#ffffff', 
+                  fontsize=9,
+                  framealpha=0.9)
+        ax1.set_xlim(-1, len(chart_df))
+        
+        # ═══════════════════════════════════════════════════════════
+        # 8. RSI Subplot
+        # ═══════════════════════════════════════════════════════════
+        
+        if 'rsi' in chart_df:
+            rsi_values = chart_df['rsi'].dropna()
+            ax2.plot(range(len(rsi_values)), rsi_values.values, 
+                    color='#00aaff', linewidth=2.5, label='RSI (14)')
+            
+            ax2.axhline(y=70, color='#ff4444', linestyle='--', 
+                       alpha=0.7, linewidth=1.5, label='Overbought')
+            ax2.axhline(y=30, color='#00ff88', linestyle='--', 
+                       alpha=0.7, linewidth=1.5, label='Oversold')
+            ax2.axhline(y=50, color='#888888', linestyle='-', alpha=0.5, linewidth=1)
+            
+            ax2.fill_between(range(len(rsi_values)), 70, 100, 
+                            color='#ff4444', alpha=0.1)
+            ax2.fill_between(range(len(rsi_values)), 0, 30, 
+                            color='#00ff88', alpha=0.1)
+            
+            ax2.set_ylabel('RSI', color='#ffffff', fontsize=12, fontweight='bold')
+            ax2.set_ylim(0, 100)
+            ax2.tick_params(colors='#ffffff', labelsize=10)
+            ax2.grid(True, alpha=0.2, color='#444444', linestyle='--', linewidth=0.5)
+            ax2.legend(loc='upper right', 
+                      facecolor='#2a2a2a', 
+                      edgecolor='#444444', 
+                      labelcolor='#ffffff',
+                      fontsize=9,
+                      framealpha=0.9)
+            ax2.set_xlim(-1, len(chart_df))
+        
+        # ═══════════════════════════════════════════════════════════
+        # 9. 🆕 แสดง Detailed Reasoning (ด้านล่าง 2 คอลัมน์)
+        # ═══════════════════════════════════════════════════════════
+        
+        if individual_analyses:
+            # แบ่ง AI ออกเป็น 2 กลุ่ม (3 ตัวซ้าย, 2 ตัวขวา)
+            left_analysts = individual_analyses[:3]
+            right_analysts = individual_analyses[3:]
+            
+            # ═══ Panel ซ้าย ═══
+            left_text = "📝 DETAILED AI REASONING (1/2)\n" + "═" * 50 + "\n\n"
+            
+            for i, analysis in enumerate(left_analysts, 1):
+                analyst_name = analysis.get('analyst', 'Unknown')
+                signal = analysis.get('signal', 'NEUTRAL')
+                confidence = analysis.get('confidence', 0)
+                reasoning = analysis.get('reasoning', {})
+                
+                emoji = {'BUY': '🟢', 'SELL': '🔴', 'NEUTRAL': '⚪'}.get(signal, '⚪')
+                
+                left_text += f"{emoji} {analyst_name}\n"
+                left_text += f"Signal: {signal} ({confidence:.0f}%)\n"
+                left_text += "─" * 50 + "\n"
+                
+                # แสดง reasoning แต่ละส่วน
+                if isinstance(reasoning, dict):
+                    # Candlestick Analysis
+                    if reasoning.get('candlestick_analysis'):
+                        candlestick = reasoning['candlestick_analysis']
+                        if len(candlestick) > 80:
+                            candlestick = candlestick[:77] + '...'
+                        left_text += f"🕯️  {candlestick}\n\n"
+                    
+                    # Harmonic Analysis
+                    if reasoning.get('harmonic_analysis'):
+                        harmonic = reasoning['harmonic_analysis']
+                        if len(harmonic) > 80:
+                            harmonic = harmonic[:77] + '...'
+                        left_text += f"📐 {harmonic}\n\n"
+                    
+                    # Elliott Wave
+                    if reasoning.get('elliott_wave_analysis'):
+                        elliott = reasoning['elliott_wave_analysis']
+                        if len(elliott) > 80:
+                            elliott = elliott[:77] + '...'
+                        left_text += f"🌊 {elliott}\n\n"
+                    
+                    # Technical Indicators
+                    if reasoning.get('technical_indicators'):
+                        technical = reasoning['technical_indicators']
+                        if len(technical) > 80:
+                            technical = technical[:77] + '...'
+                        left_text += f"📊 {technical}\n\n"
+                    
+                    # Overall Conclusion
+                    if reasoning.get('overall_conclusion'):
+                        conclusion = reasoning['overall_conclusion']
+                        if len(conclusion) > 100:
+                            conclusion = conclusion[:97] + '...'
+                        left_text += f"✅ {conclusion}\n"
+                
+                elif isinstance(reasoning, str):
+                    # ถ้า reasoning เป็น string ธรรมดา
+                    if len(reasoning) > 150:
+                        reasoning = reasoning[:147] + '...'
+                    left_text += f"{reasoning}\n"
+                
+                left_text += "\n" + "═" * 50 + "\n\n"
+            
+            ax3.text(0.05, 0.95, left_text,
+                    transform=ax3.transAxes,
+                    verticalalignment='top',
+                    horizontalalignment='left',
+                    color='white',
+                    fontsize=8,
+                    fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.8', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#00aaff',
+                             alpha=0.95, 
+                             linewidth=2))
+            
+            # ═══ Panel ขวา ═══
+            right_text = "📝 DETAILED AI REASONING (2/2)\n" + "═" * 50 + "\n\n"
+            
+            for i, analysis in enumerate(right_analysts, len(left_analysts) + 1):
+                analyst_name = analysis.get('analyst', 'Unknown')
+                signal = analysis.get('signal', 'NEUTRAL')
+                confidence = analysis.get('confidence', 0)
+                reasoning = analysis.get('reasoning', {})
+                
+                emoji = {'BUY': '🟢', 'SELL': '🔴', 'NEUTRAL': '⚪'}.get(signal, '⚪')
+                
+                right_text += f"{emoji} {analyst_name}\n"
+                right_text += f"Signal: {signal} ({confidence:.0f}%)\n"
+                right_text += "─" * 50 + "\n"
+                
+                if isinstance(reasoning, dict):
+                    if reasoning.get('candlestick_analysis'):
+                        candlestick = reasoning['candlestick_analysis']
+                        if len(candlestick) > 80:
+                            candlestick = candlestick[:77] + '...'
+                        right_text += f"🕯️  {candlestick}\n\n"
+                    
+                    if reasoning.get('harmonic_analysis'):
+                        harmonic = reasoning['harmonic_analysis']
+                        if len(harmonic) > 80:
+                            harmonic = harmonic[:77] + '...'
+                        right_text += f"📐 {harmonic}\n\n"
+                    
+                    if reasoning.get('elliott_wave_analysis'):
+                        elliott = reasoning['elliott_wave_analysis']
+                        if len(elliott) > 80:
+                            elliott = elliott[:77] + '...'
+                        right_text += f"🌊 {elliott}\n\n"
+                    
+                    if reasoning.get('technical_indicators'):
+                        technical = reasoning['technical_indicators']
+                        if len(technical) > 80:
+                            technical = technical[:77] + '...'
+                        right_text += f"📊 {technical}\n\n"
+                    
+                    if reasoning.get('overall_conclusion'):
+                        conclusion = reasoning['overall_conclusion']
+                        if len(conclusion) > 100:
+                            conclusion = conclusion[:97] + '...'
+                        right_text += f"✅ {conclusion}\n"
+                
+                elif isinstance(reasoning, str):
+                    if len(reasoning) > 150:
+                        reasoning = reasoning[:147] + '...'
+                    right_text += f"{reasoning}\n"
+                
+                right_text += "\n" + "═" * 50 + "\n\n"
+            
+            # ถ้าไม่มี AI ตัวที่ 4-5 ให้แสดง Consensus Summary
+            if len(right_analysts) == 0:
+                right_text += "📊 CONSENSUS SUMMARY\n"
+                right_text += "═" * 50 + "\n\n"
+                right_text += f"Final Decision: {final_signal}\n"
+                right_text += f"Confidence: {consensus['consensus_confidence']:.1f}%\n"
+                right_text += f"Agreement: {consensus['agreement_rate']:.0f}%\n\n"
+                right_text += "This consensus is based on the majority vote\n"
+                right_text += "of all AI analysts with weighted confidence.\n"
+            
+            ax4.text(0.05, 0.95, right_text,
+                    transform=ax4.transAxes,
+                    verticalalignment='top',
+                    horizontalalignment='left',
+                    color='white',
+                    fontsize=8,
+                    fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.8', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#00aaff',
+                             alpha=0.95, 
+                             linewidth=2))
+        
+        # ═══════════════════════════════════════════════════════════
+        # 10. Watermark
+        # ═══════════════════════════════════════════════════════════
+        
+        timestamp = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
+        watermark = f"Multi-AI Trading System with Detailed Reasoning | {consensus.get('total_analysts', 5)} AI Analysts | {timestamp} Bangkok"
+        
+        fig.text(0.5, 0.005, watermark,
+                ha='center',
+                color='#666666', 
+                fontsize=9,
+                style='italic')
+        
+        # ═══════════════════════════════════════════════════════════
+        # 11. Save
+        # ═══════════════════════════════════════════════════════════
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, 
+                   format='png', 
+                   facecolor='#0a0a0a', 
+                   edgecolor='none', 
+                   dpi=120, 
+                   bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close()
+        
+        print("✅ Chart created with Individual AI + Detailed Reasoning + Consensus")
+        
+        return img_buffer
+        
+    except Exception as e:
+        print(f"❌ Chart creation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
+    try:
+        chart_df = df.tail(50).copy()
+        
+        # สร้าง figure ขนาดใหญ่ขึ้นเพื่อให้พอแสดงข้อมูลทั้งหมด
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(18, 12), 
+                                       gridspec_kw={'height_ratios': [3, 1]})
+        
+        fig.patch.set_facecolor('#0a0a0a')
+        ax1.set_facecolor('#0a0a0a')
+        ax2.set_facecolor('#0a0a0a')
+        
+        # ═══════════════════════════════════════════════════════════
+        # 1. วาด Candlesticks
+        # ═══════════════════════════════════════════════════════════
+        for i, (idx, row) in enumerate(chart_df.iterrows()):
+            color = '#00ff88' if row['close'] >= row['open'] else '#ff4444'
+            
+            body_height = abs(row['close'] - row['open'])
+            body_bottom = min(row['close'], row['open'])
+            
+            ax1.add_patch(patches.Rectangle(
+                (i - 0.3, body_bottom), 0.6, body_height,
+                facecolor=color, edgecolor=color, alpha=0.9
+            ))
+            
+            ax1.plot([i, i], [row['low'], row['high']], 
+                    color=color, linewidth=1.5, alpha=0.7)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 2. วาด EMAs
+        # ═══════════════════════════════════════════════════════════
+        if 'ema_20' in chart_df:
+            ax1.plot(range(len(chart_df)), chart_df['ema_20'].values, 
+                    color='#ffaa00', linewidth=2, label='EMA 20', alpha=0.8)
+        if 'ema_50' in chart_df:
+            ax1.plot(range(len(chart_df)), chart_df['ema_50'].values, 
+                    color='#ff6600', linewidth=2, label='EMA 50', alpha=0.8)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 3. วาด Consensus Trading Levels
+        # ═══════════════════════════════════════════════════════════
+        entry = consensus['entry_price']
+        sl = consensus['stop_loss']
+        tp1 = consensus['take_profit_1']
+        tp2 = consensus['take_profit_2']
+        
+        # Entry Line
+        ax1.axhline(y=entry, color='#ffffff', linestyle='--', 
+                   linewidth=2.5, alpha=0.9, label=f'Entry: ${entry:,.2f}', zorder=5)
+        
+        # TP Lines
+        ax1.axhline(y=tp1, color='#00ff88', linestyle='-', 
+                   linewidth=2, alpha=0.7, label=f'TP1: ${tp1:,.2f}', zorder=5)
+        ax1.axhline(y=tp2, color='#00dd66', linestyle='-', 
+                   linewidth=2, alpha=0.7, label=f'TP2: ${tp2:,.2f}', zorder=5)
+        
+        # SL Line
+        ax1.axhline(y=sl, color='#ff4444', linestyle='-', 
+                   linewidth=2.5, alpha=0.9, label=f'SL: ${sl:,.2f}', zorder=5)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 4. แสดงผลการวิเคราะห์แยกของ AI ทั้ง 5 ตัว (ด้านซ้าย)
+        # ═══════════════════════════════════════════════════════════
+        
+        individual_analyses = consensus.get('individual_analyses', [])
+        
+        if individual_analyses:
+            # กำหนดสีตาม signal
+            signal_colors = {
+                'BUY': '#00ff88',
+                'SELL': '#ff4444',
+                'NEUTRAL': '#ffaa00'
+            }
+            
+            signal_emojis = {
+                'BUY': '🟢',
+                'SELL': '🔴',
+                'NEUTRAL': '⚪'
+            }
+            
+            # สร้างข้อความแสดงผลแต่ละ AI
+            individual_text = "🤖 INDIVIDUAL AI ANALYSIS\n" + "─" * 30 + "\n"
+            
+            for i, analysis in enumerate(individual_analyses, 1):
+                analyst_name = analysis.get('analyst', f'AI-{i}')
+                signal = analysis.get('signal', 'NEUTRAL')
+                confidence = analysis.get('confidence', 0)
+                
+                emoji = signal_emojis.get(signal, '⚪')
+                color_code = signal_colors.get(signal, '#ffaa00')
+                
+                # ย่อชื่อ AI ให้สั้นลง
+                short_name = analyst_name.replace('OpenAI ', '').replace('Google ', '').replace('Anthropic ', '')
+                
+                individual_text += f"{emoji} {short_name}:\n"
+                individual_text += f"   {signal} ({confidence:.0f}%)\n"
+                
+                # แสดง reasoning ย่อๆ (ถ้ามี)
+                if isinstance(analysis.get('reasoning'), dict):
+                    conclusion = analysis['reasoning'].get('overall_conclusion', '')
+                    if conclusion and len(conclusion) > 50:
+                        conclusion = conclusion[:47] + '...'
+                    if conclusion:
+                        individual_text += f"   {conclusion}\n"
+                
+                individual_text += "\n"
+            
+            # วาดกล่องด้านซ้ายบน
+            ax1.text(0.02, 0.98, individual_text,
+                    transform=ax1.transAxes,
+                    verticalalignment='top',
+                    horizontalalignment='left',
+                    color='white',
+                    fontsize=9,
+                    fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.8', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#00aaff',
+                             alpha=0.95, 
+                             linewidth=2),
+                    zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 5. แสดง Consensus Badge (ด้านขวาบน)
+        # ═══════════════════════════════════════════════════════════
+        
+        signal_colors = {'BUY': '#00ff88', 'SELL': '#ff4444', 'NEUTRAL': '#ffaa00'}
+        final_signal = consensus['final_signal']
+        signal_color = signal_colors.get(final_signal, '#ffaa00')
+        
+        # สร้างข้อความ Consensus
+        consensus_text = f"""╔═══ CONSENSUS ═══╗
+
+🎯 FINAL SIGNAL
+   {final_signal}
+   
+💪 CONFIDENCE
+   {consensus['consensus_confidence']:.1f}%
+
+📊 VOTING
+   🟢 BUY:     {consensus['votes']['BUY']}
+   🔴 SELL:    {consensus['votes']['SELL']}
+   ⚪ NEUTRAL: {consensus['votes']['NEUTRAL']}
+
+✅ AGREEMENT
+   {consensus['agreement_rate']:.0f}%
+
+👥 ANALYSTS
+   {consensus.get('total_analysts', len(individual_analyses))} AI Models"""
+        
+        # วาดกล่อง Consensus ด้านขวาบน
+        ax1.text(0.98, 0.98, consensus_text,
+                transform=ax1.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                color='white',
+                fontsize=11,
+                fontweight='bold',
+                fontfamily='monospace',
+                bbox=dict(boxstyle='round,pad=0.9', 
+                         facecolor='#1a1a1a', 
+                         edgecolor=signal_color,
+                         alpha=0.95, 
+                         linewidth=3),
+                zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 6. แสดง Pattern Info (ด้านล่างซ้าย)
+        # ═══════════════════════════════════════════════════════════
+        
+        pattern_name = pattern_info.get('pattern_name', 'NO_PATTERN')
+        if pattern_name != 'NO_PATTERN':
+            pattern_text = f"📐 PATTERN\n{pattern_name}"
+            
+            ax1.text(0.02, 0.02, pattern_text,
+                    transform=ax1.transAxes,
+                    verticalalignment='bottom',
+                    horizontalalignment='left',
+                    color='#ffaa00',
+                    fontsize=10,
+                    fontweight='bold',
+                    bbox=dict(boxstyle='round,pad=0.6', 
+                             facecolor='#1a1a1a', 
+                             edgecolor='#ffaa00',
+                             alpha=0.9, 
+                             linewidth=2),
+                    zorder=20)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 7. Title และ Labels
+        # ═══════════════════════════════════════════════════════════
+        
+        current_price = consensus.get('current_price', df['close'].iloc[-1])
+        
+        ax1.set_title(
+            f'XAU/USD: ${current_price:,.2f} | Pattern: {pattern_name} | Multi-AI Consensus: {final_signal}', 
+            color=signal_color, 
+            fontsize=16, 
+            fontweight='bold', 
+            pad=20
+        )
+        
+        ax1.set_ylabel('Price ($)', color='#ffffff', fontsize=12, fontweight='bold')
+        ax1.tick_params(colors='#ffffff', labelsize=10)
+        ax1.grid(True, alpha=0.2, color='#444444', linestyle='--', linewidth=0.5)
+        ax1.legend(loc='lower left', 
+                  facecolor='#2a2a2a', 
+                  edgecolor='#444444', 
+                  labelcolor='#ffffff', 
+                  fontsize=9,
+                  framealpha=0.9)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 8. RSI Subplot (ด้านล่าง)
+        # ═══════════════════════════════════════════════════════════
+        
+        if 'rsi' in chart_df:
+            rsi_values = chart_df['rsi'].dropna()
+            ax2.plot(range(len(rsi_values)), rsi_values.values, 
+                    color='#00aaff', linewidth=2.5, label='RSI (14)')
+            
+            # RSI levels
+            ax2.axhline(y=70, color='#ff4444', linestyle='--', 
+                       alpha=0.7, linewidth=1.5, label='Overbought (70)')
+            ax2.axhline(y=30, color='#00ff88', linestyle='--', 
+                       alpha=0.7, linewidth=1.5, label='Oversold (30)')
+            ax2.axhline(y=50, color='#888888', linestyle='-', 
+                       alpha=0.5, linewidth=1)
+            
+            # Fill areas
+            ax2.fill_between(range(len(rsi_values)), 70, 100, 
+                            color='#ff4444', alpha=0.1)
+            ax2.fill_between(range(len(rsi_values)), 0, 30, 
+                            color='#00ff88', alpha=0.1)
+            
+            ax2.set_ylabel('RSI', color='#ffffff', fontsize=12, fontweight='bold')
+            ax2.set_ylim(0, 100)
+            ax2.tick_params(colors='#ffffff', labelsize=10)
+            ax2.grid(True, alpha=0.2, color='#444444', linestyle='--', linewidth=0.5)
+            ax2.legend(loc='upper right', 
+                      facecolor='#2a2a2a', 
+                      edgecolor='#444444', 
+                      labelcolor='#ffffff',
+                      fontsize=9,
+                      framealpha=0.9)
+        
+        # ═══════════════════════════════════════════════════════════
+        # 9. Set X-axis limits
+        # ═══════════════════════════════════════════════════════════
+        
+        ax1.set_xlim(-1, len(chart_df))
+        ax2.set_xlim(-1, len(chart_df))
+        
+        # ═══════════════════════════════════════════════════════════
+        # 10. Watermark
+        # ═══════════════════════════════════════════════════════════
+        
+        timestamp = datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
+        watermark = f"Multi-AI Trading System | {consensus.get('total_analysts', 5)} AI Analysts | Generated: {timestamp} Bangkok"
+        
+        fig.text(0.5, 0.01, watermark,
+                ha='center',
+                color='#666666', 
+                fontsize=9,
+                style='italic')
+        
+        # ═══════════════════════════════════════════════════════════
+        # 11. Tight layout และ Save
+        # ═══════════════════════════════════════════════════════════
+        
+        plt.tight_layout(rect=[0, 0.02, 1, 1])
+        
+        # Save to buffer
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, 
+                   format='png', 
+                   facecolor='#0a0a0a', 
+                   edgecolor='none', 
+                   dpi=120, 
+                   bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close()
+        
+        print("✅ Chart created with Individual AI + Consensus")
+        
+        return img_buffer
+        
+    except Exception as e:
+        print(f"❌ Chart creation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# ตัวอย่างการใช้งาน
+# ═══════════════════════════════════════════════════════════════
+
+def example_usage():
+    """ตัวอย่างการใช้งานฟังก์ชัน"""
+    
+    # สมมติว่ามี consensus จาก MultiAnalystSystem
+    consensus = {
+        'final_signal': 'BUY',
+        'consensus_confidence': 82.5,
+        'votes': {'BUY': 4, 'SELL': 0, 'NEUTRAL': 1},
+        'agreement_rate': 80.0,
+        'total_analysts': 5,
+        'entry_price': 2650.50,
+        'stop_loss': 2640.00,
+        'take_profit_1': 2665.00,
+        'take_profit_2': 2680.00,
+        'current_price': 2650.50,
+        
+        # Individual AI analyses
+        'individual_analyses': [
+            {
+                'analyst': 'OpenAI GPT-4',
+                'signal': 'BUY',
+                'confidence': 85,
+                'reasoning': {
+                    'overall_conclusion': 'Strong bullish momentum with multiple confirmations'
+                }
+            },
+            {
+                'analyst': 'Google Gemini',
+                'signal': 'BUY',
+                'confidence': 80,
+                'reasoning': {
+                    'overall_conclusion': 'Positive technical indicators support upward move'
+                }
+            },
+            {
+                'analyst': 'DeepSeek',
+                'signal': 'BUY',
+                'confidence': 88,
+                'reasoning': {
+                    'overall_conclusion': 'Harmonic pattern completion signals reversal'
+                }
+            },
+            {
+                'analyst': 'Grok',
+                'signal': 'NEUTRAL',
+                'confidence': 65,
+                'reasoning': {
+                    'overall_conclusion': 'Mixed signals, wait for confirmation'
+                }
+            },
+            {
+                'analyst': 'Claude Sonnet 4',
+                'signal': 'BUY',
+                'confidence': 78,
+                'reasoning': {
+                    'overall_conclusion': 'Elliott Wave structure suggests continuation'
+                }
+            }
+        ]
+    }
+    
+    pattern_info = {
+        'pattern_name': 'GARTLEY_BULLISH'
+    }
+    
+    # สมมติว่ามี DataFrame df
+    # chart_buffer = create_ai_enhanced_chart(df, consensus, pattern_info)
+    
+    print("Example consensus structure shown above")
+
+
+if __name__ == "__main__":
+    example_usage()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 📋 สรุปสิ่งที่แสดงบนกราฟ
+# ═══════════════════════════════════════════════════════════════
+
+"""
+Layout ของกราฟ:
+
+┌─────────────────────────────────────────────────────────────┐
+│                     PRICE CHART                              │
+│                                                              │
+│  ┌─────────────────┐              ┌──────────────────┐     │
+│  │ 🤖 INDIVIDUAL   │              │ ╔═══ CONSENSUS   │     │
+│  │ AI ANALYSIS     │              │ 🎯 FINAL: BUY    │     │
+│  │                 │   [CHART]    │ 💪 CONF: 82.5%   │     │
+│  │ 🟢 GPT-4: BUY   │              │ 📊 VOTES         │     │
+│  │ 🟢 Gemini: BUY  │              │ ✅ AGREE: 80%    │     │
+│  │ 🟢 DeepSeek:BUY │              │ 👥 5 AI Models   │     │
+│  │ ⚪ Grok:NEUTRAL │              └──────────────────┘     │
+│  │ 🟢 Claude: BUY  │                                        │
+│  └─────────────────┘                                        │
+│                                                              │
+│  📐 PATTERN: GARTLEY_BULLISH                                │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     RSI (14)                                 │
+└─────────────────────────────────────────────────────────────┘
+
+Features:
+✅ ด้านซ้ายบน: แสดง AI ทั้ง 5 ตัวแยก (Signal + Confidence)
+✅ ด้านขวาบน: Consensus Badge (สรุปรวม)
+✅ ด้านล่างซ้าย: Pattern ที่ตรวจพบ
+✅ Trading Levels: Entry, SL, TP1, TP2
+✅ EMAs: 20, 50
+✅ RSI: ด้านล่างพร้อม Overbought/Oversold zones
+✅ Watermark: Timestamp + จำนวน AI
+"""
+    
+
 def analyze_gold_signals():
     """
     ฟังก์ชันหลักที่รวม Pattern Detection + Multi-AI Analysis
