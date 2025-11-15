@@ -590,100 +590,6 @@ class MultiAnalystSystem:
         print(f"\n✅ Consensus: {final_signal} ({avg_confidence:.1f}%)")
         return consensus
 
-# ====================== News & Economic Data ======================
-
-def get_market_news(api_key: str = None) -> List[Dict]:
-    """ดึงข่าวจาก NewsAPI"""
-    try:
-        if not api_key:
-            return []
-        
-        url = "https://newsapi.org/v2/everything"
-        params = {
-            'q': 'gold OR XAU',
-            'apiKey': api_key,
-            'language': 'en',
-            'pageSize': 5
-        }
-        
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        
-        if data.get('status') == 'ok':
-            return [{
-                'title': a.get('title', ''),
-                'source': a.get('source', {}).get('name', '')
-            } for a in data.get('articles', [])[:5]]
-        return []
-    except:
-        return []
-
-def get_economic_indicators() -> Dict:
-    """ข้อมูลเศรษฐกิจ (Mock data)"""
-    return {
-        'USD_Index': {'value': 104.5, 'impact': 'Negative for Gold'},
-        'US_10Y_Yield': {'value': 4.25, 'impact': 'Slightly Negative'},
-        'Inflation_CPI': {'value': 3.2, 'impact': 'Positive'}
-        }
-
-
-# ====================== NEW: AI Consensus System ======================
-
-async def get_ai_consensus(market_data):
-    """Get analysis from all AI agents"""
-    analysts = [
-        OpenAIAnalyst(),
-        GeminiAnalyst(),
-        DeepSeekAnalyst(),
-        GrokAnalyst()
-    ]
-    
-    analyses = []
-    
-    for analyst in analysts:
-        try:
-            analysis = await analyst.analyze(market_data)
-            analyses.append(analysis)
-            print(f"  ✓ {analyst.name}: {analysis['action']} ({analysis['confidence']}%)")
-        except Exception as e:
-            print(f"  ✗ {analyst.name} failed: {e}")
-    
-    return analyses
-
-def make_consensus_decision(analyses):
-    """Aggregate AI decisions"""
-    if not analyses:
-        return None
-    
-    buy_votes = sum(1 for a in analyses if a['action'] == 'BUY')
-    sell_votes = sum(1 for a in analyses if a['action'] == 'SELL')
-    hold_votes = sum(1 for a in analyses if a['action'] == 'HOLD')
-    
-    buy_conf = np.mean([a['confidence'] for a in analyses if a['action'] == 'BUY']) if buy_votes > 0 else 0
-    sell_conf = np.mean([a['confidence'] for a in analyses if a['action'] == 'SELL']) if sell_votes > 0 else 0
-    
-    if buy_votes > sell_votes and buy_votes > hold_votes:
-        final_action = "BUY"
-        final_conf = buy_conf
-    elif sell_votes > buy_votes and sell_votes > hold_votes:
-        final_action = "SELL"
-        final_conf = sell_conf
-    else:
-        final_action = "HOLD"
-        final_conf = 50
-    
-    avg_sl = np.mean([a['stop_loss_pips'] for a in analyses])
-    avg_tp = np.mean([a['take_profit_pips'] for a in analyses])
-    
-    return {
-        "action": final_action,
-        "confidence": round(final_conf, 1),
-        "votes": {"BUY": buy_votes, "SELL": sell_votes, "HOLD": hold_votes},
-        "stop_loss_pips": round(avg_sl, 0),
-        "take_profit_pips": round(avg_tp, 0),
-        "individual_analyses": analyses
-    }
-
 # ====================== NEW: Enhanced Chart with AI ======================
 
 def create_ai_enhanced_chart(df, consensus, pattern_info):
@@ -6104,6 +6010,105 @@ def get_pattern_signal_with_context(pattern_name, pattern_info=None):
     
     # ถ้าวิเคราะห์ไม่ได้
     return "🟡 WAIT (Cannot Determine Direction)"
+
+    def analyze_gold_signals():
+    """
+    ฟังก์ชันหลักที่รวม Pattern Detection + Multi-AI Analysis
+    """
+    global last_signal, last_pattern_sent_hour, last_harmonic_sent_hour
+    
+    try:
+        # 1. ดึงข้อมูล XAU/USD
+        df = get_shared_xau_data()
+        if df is None or len(df) < 50:
+            print("⚠️ Insufficient data")
+            return
+        
+        current_hour = datetime.now(ZoneInfo("Asia/Bangkok")).hour
+        current_price = df['close'].iloc[-1]
+        
+        print(f"\n{'='*60}")
+        print(f"🔍 Analyzing XAU/USD: ${current_price:,.2f}")
+        print(f"{'='*60}")
+        
+        # 2. ตรวจจับ Patterns (ใช้ฟังก์ชันเดิม)
+        pattern_info = detect_all_patterns(df)  # ฟังก์ชันที่มีอยู่แล้ว
+        
+        # 3. เตรียมข้อมูลสำหรับ AI
+        market_data = {
+            'current_price': float(current_price),
+            'rsi': float(df['rsi'].iloc[-1]) if 'rsi' in df else 50.0,
+            'macd': float(df['macd'].iloc[-1]) if 'macd' in df else 0.0,
+            'signal': float(df['signal'].iloc[-1]) if 'signal' in df else 0.0,
+            'ema_20': float(df['ema_20'].iloc[-1]) if 'ema_20' in df else current_price,
+            'ema_50': float(df['ema_50'].iloc[-1]) if 'ema_50' in df else current_price,
+            'pattern_detected': pattern_info.get('pattern_name', 'NO_PATTERN')
+        }
+        
+        # 4. ดึงข่าวและข้อมูลเศรษฐกิจ
+        news_api_key = os.getenv('NEWS_API_KEY')
+        news = get_market_news(news_api_key)
+        economic_data = get_economic_indicators()
+        
+        print(f"📰 News: {len(news)} articles")
+        print(f"📊 Economic indicators: {len(economic_data)}")
+        
+        # 5. Multi-AI Analysis
+        api_keys = {
+            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
+            'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY'),
+            'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY'),
+            'GROK_API_KEY': os.getenv('GROK_API_KEY'),
+            'CLAUDE_API_KEY': os.getenv('CLAUDE_API_KEY')
+        }
+        
+        # กรองเฉพาะ API keys ที่มีค่า
+        api_keys = {k: v for k, v in api_keys.items() if v}
+        
+        if len(api_keys) == 0:
+            print("⚠️ No AI API keys found, skipping AI analysis")
+            return
+        
+        multi_ai = MultiAnalystSystem(api_keys)
+        consensus = multi_ai.get_consensus(market_data, news, economic_data)
+        
+        # 6. ตรวจสอบว่าควรส่ง Alert หรือไม่
+        should_send = False
+        
+        if consensus['final_signal'] != 'NEUTRAL':
+            if consensus['agreement_rate'] >= 60:  # อย่างน้อย 60% เห็นด้วย
+                if last_pattern_sent_hour != current_hour:
+                    should_send = True
+                    last_pattern_sent_hour = current_hour
+        
+        # 7. สร้างกราฟและส่ง Telegram
+        if should_send:
+            print("\n📤 Sending Telegram Alert...")
+            
+            # สร้างกราฟ
+            trading_signals = {
+                'action': consensus['final_signal'],
+                'current_price': current_price,
+                'entry_price': consensus['entry_price'],
+                'tp1': consensus.get('take_profit_1', current_price * 1.01),
+                'tp2': consensus.get('take_profit_2', current_price * 1.02),
+                'tp3': consensus.get('take_profit_3', current_price * 1.03),
+                'sl': consensus.get('stop_loss', current_price * 0.98)
+            }
+            
+            chart_buffer = create_candlestick_chart(df, trading_signals, pattern_info)
+            
+            # ส่ง Telegram
+            send_ai_telegram_alert(BOT_TOKEN, CHAT_ID, consensus, chart_buffer)
+            
+            print("✅ Alert sent successfully!")
+        else:
+            print(f"⏸️ No alert: Signal={consensus['final_signal']}, Agreement={consensus['agreement_rate']}%")
+        
+    except Exception as e:
+        print(f"❌ Error in analyze_gold_signals: {e}")
+        import traceback
+        traceback.print_exc()
 
 def send_telegram_with_chart(message_text, chart_buffer):
     """Send message with chart image to Telegram"""
