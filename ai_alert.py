@@ -405,149 +405,227 @@ Provide analysis in JSON format:
             text += f" ({data.get('impact', 'N/A')})"
         return text
 
-class OpenAIAnalyst(AIAnalyst):
+
+
+# ====================== AI Analysts Classes ======================
+
+class BaseAnalyst:
+    """Base class for all AI analysts"""
+    def __init__(self, api_key: str, name: str):
+        self.api_key = api_key
+        self.name = name
+    
+    def analyze(self, market_data: Dict, news: List, economic_data: Dict) -> Dict:
+        raise NotImplementedError
+
+class OpenAIAnalyst(BaseAnalyst):
     """OpenAI GPT-4 Analyst"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key, "OpenAI GPT-4")
+        self.client = OpenAI(api_key=api_key)
     
-    def __init__(self):
-        super().__init__("OpenAI GPT-4")
-    
-    async def analyze(self, market_data):
-        if not OPENAI_API_KEY or not HAS_OPENAI:
-            return self._fallback_analysis(market_data)
-        
+    def analyze(self, market_data: Dict, news: List, economic_data: Dict) -> Dict:
         try:
-            prompt = self.create_analysis_prompt(market_data)
+            prompt = self._create_prompt(market_data, news, economic_data)
             
-            response = openai.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model="gpt-4-turbo-preview",
                 messages=[
-                    {"role": "system", "content": "You are a professional XAU/USD trader. Respond with JSON only."},
+                    {"role": "system", "content": "You are an expert Gold (XAU/USD) trading analyst."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=400
+                max_tokens=1500
             )
             
-            analysis_text = response.choices[0].message.content
-            
-            import re
-            json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
-            if json_match:
-                analysis = json.loads(json_match.group())
-                analysis['analyst'] = self.name
-                return analysis
+            result = self._parse_response(response.choices[0].message.content)
+            result['analyst'] = self.name
+            return result
             
         except Exception as e:
             print(f"❌ {self.name} error: {e}")
-        
-        return self._fallback_analysis(market_data)
+            return self._get_fallback_response()
+    
+    def _create_prompt(self, market_data: Dict, news: List, economic_data: Dict) -> str:
+        return f"""
+Analyze XAU/USD: Current ${market_data.get('current_price', 0):.2f}
+RSI: {market_data.get('rsi', 50):.2f}
+MACD: {market_data.get('macd', 0):.4f}
 
-class GeminiAnalyst(AIAnalyst):
-    """Google Gemini Analyst"""
+Provide JSON:
+{{
+    "signal": "BUY/SELL/NEUTRAL",
+    "confidence": 0-100,
+    "entry_price": price,
+    "stop_loss": price,
+    "take_profit_1": price,
+    "take_profit_2": price,
+    "reasoning": "analysis"
+}}
+"""
     
-    def __init__(self):
-        super().__init__("Google Gemini")
-        if GEMINI_API_KEY and HAS_GEMINI:
-            self.model = genai.GenerativeModel('gemini-pro')
-        else:
-            self.model = None
-    
-    async def analyze(self, market_data):
-        if not self.model:
-            return self._fallback_analysis(market_data)
-        
+    def _parse_response(self, response: str) -> Dict:
         try:
-            prompt = self.create_analysis_prompt(market_data)
-            response = self.model.generate_content(prompt)
-            analysis_text = response.text
-            
-            import re
-            json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
-            if json_match:
-                analysis = json.loads(json_match.group())
-                analysis['analyst'] = self.name
-                return analysis
-            
-        except Exception as e:
-            print(f"❌ {self.name} error: {e}")
-        
-        return self._fallback_analysis(market_data)
-
-class DeepSeekAnalyst(AIAnalyst):
-    """DeepSeek AI Analyst"""
+            response = response.strip()
+            if response.startswith('```json'):
+                response = response[7:]
+            if response.startswith('```'):
+                response = response[3:]
+            if response.endswith('```'):
+                response = response[:-3]
+            response = response.strip()
+            return json.loads(response)
+        except:
+            return self._get_fallback_response()
     
-    def __init__(self):
-        super().__init__("DeepSeek")
-    
-    async def analyze(self, market_data):
-        if not DEEPSEEK_API_KEY:
-            return self._fallback_analysis(market_data)
-        
-        try:
-            prompt = self.create_analysis_prompt(market_data)
-            
-            response = requests.post(
-                "https://api.deepseek.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                analysis_text = data['choices'][0]['message']['content']
-                
-                import re
-                json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
-                if json_match:
-                    analysis = json.loads(json_match.group())
-                    analysis['analyst'] = self.name
-                    return analysis
-            
-        except Exception as e:
-            print(f"❌ {self.name} error: {e}")
-        
-        return self._fallback_analysis(market_data)
-
-class GrokAnalyst(AIAnalyst):
-    """Grok (xAI) Analyst"""
-    
-    def __init__(self):
-        super().__init__("Grok (xAI)")
-    
-    async def analyze(self, market_data):
-        # Pattern-based fallback (Grok API not fully public yet)
-        pattern = market_data['pattern']
-        indicators = market_data['indicators']
-        
-        bullish_patterns = ['BULL_FLAG', 'DOUBLE_BOTTOM', 'INVERSE_HEAD_SHOULDERS', 'CUP_AND_HANDLE']
-        bearish_patterns = ['BEAR_FLAG', 'DOUBLE_TOP', 'HEAD_SHOULDERS']
-        
-        if pattern['name'] in bullish_patterns:
-            action = "BUY"
-            conf = pattern['confidence']
-        elif pattern['name'] in bearish_patterns:
-            action = "SELL"
-            conf = pattern['confidence']
-        else:
-            action = "HOLD" if indicators['ema'] < indicators['ema_21'] else "BUY"
-            conf = 65
-        
+    def _get_fallback_response(self) -> Dict:
         return {
             "analyst": self.name,
-            "action": action,
-            "confidence": conf,
-            "stop_loss_pips": 55,
-            "take_profit_pips": 165,
-            "reasoning": f"Pattern {pattern['name']} + EMA trend analysis"
+            "signal": "NEUTRAL",
+            "confidence": 50,
+            "entry_price": 0,
+            "stop_loss": 0,
+            "take_profit_1": 0,
+            "take_profit_2": 0,
+            "reasoning": "Analysis failed"
         }
+
+class GeminiAnalyst(BaseAnalyst):
+    """Google Gemini - คล้าย OpenAI"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key, "Gemini")
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-pro')
+    
+    def analyze(self, market_data, news, economic_data):
+        # ใช้โค้ดเดียวกับ OpenAI แต่เปลี่ยน API call
+        pass
+
+class DeepSeekAnalyst(BaseAnalyst):
+    """DeepSeek - ใช้ OpenAI compatible API"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key, "DeepSeek")
+        self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+
+class GrokAnalyst(BaseAnalyst):
+    """Grok - ใช้ OpenAI compatible API"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key, "Grok")
+        self.client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+
+class ClaudeAnalyst(BaseAnalyst):
+    """Claude - ใช้ Anthropic API"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key, "Claude")
+        self.client = anthropic.Anthropic(api_key=api_key)
+    
+    def analyze(self, market_data, news, economic_data):
+        try:
+            prompt = OpenAIAnalyst._create_prompt(self, market_data, news, economic_data)
+            message = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2048,
+                temperature=0.3,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            result = OpenAIAnalyst._parse_response(self, message.content[0].text)
+            result['analyst'] = self.name
+            return result
+        except Exception as e:
+            print(f"❌ {self.name} error: {e}")
+            return self._get_fallback_response()
+
+# ====================== Multi-Analyst System ======================
+
+class MultiAnalystSystem:
+    def __init__(self, api_keys: Dict[str, str]):
+        self.analysts = []
+        
+        if api_keys.get('OPENAI_API_KEY'):
+            self.analysts.append(OpenAIAnalyst(api_keys['OPENAI_API_KEY']))
+        if api_keys.get('GEMINI_API_KEY'):
+            self.analysts.append(GeminiAnalyst(api_keys['GEMINI_API_KEY']))
+        if api_keys.get('DEEPSEEK_API_KEY'):
+            self.analysts.append(DeepSeekAnalyst(api_keys['DEEPSEEK_API_KEY']))
+        if api_keys.get('GROK_API_KEY'):
+            self.analysts.append(GrokAnalyst(api_keys['GROK_API_KEY']))
+        if api_keys.get('CLAUDE_API_KEY'):
+            self.analysts.append(ClaudeAnalyst(api_keys['CLAUDE_API_KEY']))
+        
+        print(f"✅ Initialized {len(self.analysts)} AI analysts")
+    
+    def get_consensus(self, market_data: Dict, news: List, economic_data: Dict) -> Dict:
+        print("\n🤖 Multi-AI Analysis...")
+        analyses = []
+        
+        for analyst in self.analysts:
+            print(f"   📊 {analyst.name}...")
+            analysis = analyst.analyze(market_data, news, economic_data)
+            analyses.append(analysis)
+        
+        return self._calculate_consensus(analyses, market_data)
+    
+    def _calculate_consensus(self, analyses: List[Dict], market_data: Dict) -> Dict:
+        votes = {'BUY': 0, 'SELL': 0, 'NEUTRAL': 0}
+        confidences = {'BUY': [], 'SELL': [], 'NEUTRAL': []}
+        
+        for analysis in analyses:
+            signal = analysis.get('signal', 'NEUTRAL')
+            confidence = analysis.get('confidence', 50)
+            votes[signal] += 1
+            confidences[signal].append(confidence)
+        
+        final_signal = max(votes, key=votes.get)
+        avg_confidence = sum(confidences[final_signal]) / len(confidences[final_signal]) if confidences[final_signal] else 50
+        
+        consensus = {
+            'final_signal': final_signal,
+            'consensus_confidence': round(avg_confidence, 1),
+            'votes': votes,
+            'agreement_rate': round(votes[final_signal] / len(analyses) * 100, 1),
+            'entry_price': market_data.get('current_price', 0),
+            'individual_analyses': analyses
+        }
+        
+        print(f"\n✅ Consensus: {final_signal} ({avg_confidence:.1f}%)")
+        return consensus
+
+# ====================== News & Economic Data ======================
+
+def get_market_news(api_key: str = None) -> List[Dict]:
+    """ดึงข่าวจาก NewsAPI"""
+    try:
+        if not api_key:
+            return []
+        
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            'q': 'gold OR XAU',
+            'apiKey': api_key,
+            'language': 'en',
+            'pageSize': 5
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if data.get('status') == 'ok':
+            return [{
+                'title': a.get('title', ''),
+                'source': a.get('source', {}).get('name', '')
+            } for a in data.get('articles', [])[:5]]
+        return []
+    except:
+        return []
+
+def get_economic_indicators() -> Dict:
+    """ข้อมูลเศรษฐกิจ (Mock data)"""
+    return {
+        'USD_Index': {'value': 104.5, 'impact': 'Negative for Gold'},
+        'US_10Y_Yield': {'value': 4.25, 'impact': 'Slightly Negative'},
+        'Inflation_CPI': {'value': 3.2, 'impact': 'Positive'}
+        }
+
 
 # ====================== NEW: AI Consensus System ======================
 
