@@ -6918,6 +6918,50 @@ Low = ${low_val} | Close = ${close_val}
     except Exception as e:
         return f"❌ ORIGINAL BOT ERROR: {e}"
 
+def send_ai_telegram_alert(bot_token: str, chat_id: str, consensus: Dict, chart_buffer=None):
+    """ส่ง Telegram Alert พร้อม Multi-AI Consensus"""
+    try:
+        emoji = {'BUY': '🟢', 'SELL': '🔴', 'NEUTRAL': '⚪'}[consensus['final_signal']]
+        
+        message = f"""
+{emoji} *XAU/USD - MULTI-AI ALERT* {emoji}
+
+🤖 *AI Consensus*: {consensus['total_analysts']} analysts
+✅ *Agreement*: {consensus['agreement_rate']}%
+
+📊 *VOTES*:
+🟢 BUY: {consensus['votes']['BUY']}
+🔴 SELL: {consensus['votes']['SELL']}
+⚪ NEUTRAL: {consensus['votes']['NEUTRAL']}
+
+🎯 *SIGNAL*: *{consensus['final_signal']}*
+💪 *Confidence*: {consensus['consensus_confidence']}%
+
+💰 *Price*: ${consensus['entry_price']:,.2f}
+
+⏰ {datetime.now(ZoneInfo("Asia/Bangkok")).strftime('%Y-%m-%d %H:%M:%S')} Bangkok
+"""
+        
+        # ส่งข้อความ
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        requests.post(url, json={
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'Markdown'
+        }, timeout=10)
+        
+        # ส่งกราฟ
+        if chart_buffer:
+            url_photo = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
+            files = {'photo': ('chart.png', chart_buffer, 'image/png')}
+            requests.post(url_photo, files=files, data={'chat_id': chat_id}, timeout=10)
+        
+        print("✅ Telegram sent!")
+        return True
+    except Exception as e:
+        print(f"❌ Telegram error: {e}")
+        return False
+
 # ====================== Pattern Detection System ======================
 
 class SimplePatternDetector:
