@@ -6011,7 +6011,7 @@ def get_pattern_signal_with_context(pattern_name, pattern_info=None):
     # ถ้าวิเคราะห์ไม่ได้
     return "🟡 WAIT (Cannot Determine Direction)"
 
-    def analyze_gold_signals():
+def analyze_gold_signals():
     """
     ฟังก์ชันหลักที่รวม Pattern Detection + Multi-AI Analysis
     """
