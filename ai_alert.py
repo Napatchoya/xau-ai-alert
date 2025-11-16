@@ -11721,75 +11721,7 @@ def schedule_ai_analysis():
 
 # ====================== Main Entry Point ======================
 
-if __name__ == "__main__":
-    print("""
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║    🤖 XAU/USD AI MULTI-LLM TRADING SYSTEM (ENHANCED) 🤖      ║
-║                                                               ║
-║  DUAL SYSTEM:                                                 ║
-║    ✓ Original Pattern Recognition System                     ║
-║    ✓ NEW: Multi-LLM AI Analysis System                       ║
-║                                                               ║
-║  AI Analysts:                                                 ║
-║    • OpenAI GPT-4         🇺🇸                                 ║
-║    • Google Gemini        🇬🇧                                 ║
-║    • DeepSeek AI          🇨🇳                                 ║
-║    • Grok (xAI)           🇺🇸                                 ║
-║                                                               ║
-║  Features:                                                    ║
-║    ✓ Real-time market analysis                               ║
-║    ✓ Multi-AI consensus voting                               ║
-║    ✓ Advanced pattern recognition                            ║
-║    ✓ News & sentiment analysis                               ║
-║    ✓ Automated Telegram alerts                               ║
-║    ✓ Flask API for control                                   ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-    """)
-    
-    
-    # ทดสอบระบบ Pattern Detection (ถ้าต้องการ)
-    # print("📚 Testing Pattern Detection System...")
-    # test_pattern_detection()
-    
-    
-    print("🔑 Checking API credentials...\n")
-    
-    # Check original APIs
-    if not API_KEY:
-        print("❌ TwelveData API key missing!")
-    else:
-        print("✅ TwelveData API configured")
-    
-    if not BOT_TOKEN or not CHAT_ID:
-        print("⚠️ Telegram credentials missing - notifications disabled")
-    else:
-        print("✅ Telegram configured")
-    
-    # Check AI APIs
-    print("\n🤖 AI Systems:")
-    if OPENAI_API_KEY and HAS_OPENAI:
-        print("✅ OpenAI GPT-4 ready")
-    else:
-        print("⚠️ OpenAI not available - using fallback")
-    
-    if GEMINI_API_KEY and HAS_GEMINI:
-        print("✅ Google Gemini ready")
-    else:
-        print("⚠️ Gemini not available - using fallback")
-    
-    if DEEPSEEK_API_KEY:
-        print("✅ DeepSeek ready")
-    else:
-        print("⚠️ DeepSeek not available - using fallback")
-    
-    if GROK_API_KEY:
-        print("✅ Grok ready")
-    else:
-        print("⚠️ Grok not available - using fallback")
-    
-    print("\n🚀 Starting dual system...\n")
+
     
     # Start AI scheduler in background
     ai_scheduler_thread = Thread(target=schedule_ai_analysis, daemon=True, name="AI-Scheduler")
