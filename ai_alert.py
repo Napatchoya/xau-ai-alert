@@ -6506,46 +6506,7 @@ def example_usage():
     print("Example consensus structure shown above")
 
 
-if __name__ == "__main__":
-    example_usage()
 
-
-# ═══════════════════════════════════════════════════════════════
-# 📋 สรุปสิ่งที่แสดงบนกราฟ
-# ═══════════════════════════════════════════════════════════════
-
-"""
-Layout ของกราฟ:
-
-┌─────────────────────────────────────────────────────────────┐
-│                     PRICE CHART                              │
-│                                                              │
-│  ┌─────────────────┐              ┌──────────────────┐     │
-│  │ 🤖 INDIVIDUAL   │              │ ╔═══ CONSENSUS   │     │
-│  │ AI ANALYSIS     │              │ 🎯 FINAL: BUY    │     │
-│  │                 │   [CHART]    │ 💪 CONF: 82.5%   │     │
-│  │ 🟢 GPT-4: BUY   │              │ 📊 VOTES         │     │
-│  │ 🟢 Gemini: BUY  │              │ ✅ AGREE: 80%    │     │
-│  │ 🟢 DeepSeek:BUY │              │ 👥 5 AI Models   │     │
-│  │ ⚪ Grok:NEUTRAL │              └──────────────────┘     │
-│  │ 🟢 Claude: BUY  │                                        │
-│  └─────────────────┘                                        │
-│                                                              │
-│  📐 PATTERN: GARTLEY_BULLISH                                │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                     RSI (14)                                 │
-└─────────────────────────────────────────────────────────────┘
-
-Features:
-✅ ด้านซ้ายบน: แสดง AI ทั้ง 5 ตัวแยก (Signal + Confidence)
-✅ ด้านขวาบน: Consensus Badge (สรุปรวม)
-✅ ด้านล่างซ้าย: Pattern ที่ตรวจพบ
-✅ Trading Levels: Entry, SL, TP1, TP2
-✅ EMAs: 20, 50
-✅ RSI: ด้านล่างพร้อม Overbought/Oversold zones
-✅ Watermark: Timestamp + จำนวน AI
-"""
     
 
 def analyze_gold_signals():
@@ -14210,6 +14171,47 @@ def debug_pattern_priority():
             "message": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+if __name__ == "__main__":
+    example_usage()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 📋 สรุปสิ่งที่แสดงบนกราฟ
+# ═══════════════════════════════════════════════════════════════
+
+"""
+Layout ของกราฟ:
+
+┌─────────────────────────────────────────────────────────────┐
+│                     PRICE CHART                              │
+│                                                              │
+│  ┌─────────────────┐              ┌──────────────────┐     │
+│  │ 🤖 INDIVIDUAL   │              │ ╔═══ CONSENSUS   │     │
+│  │ AI ANALYSIS     │              │ 🎯 FINAL: BUY    │     │
+│  │                 │   [CHART]    │ 💪 CONF: 82.5%   │     │
+│  │ 🟢 GPT-4: BUY   │              │ 📊 VOTES         │     │
+│  │ 🟢 Gemini: BUY  │              │ ✅ AGREE: 80%    │     │
+│  │ 🟢 DeepSeek:BUY │              │ 👥 5 AI Models   │     │
+│  │ ⚪ Grok:NEUTRAL │              └──────────────────┘     │
+│  │ 🟢 Claude: BUY  │                                        │
+│  └─────────────────┘                                        │
+│                                                              │
+│  📐 PATTERN: GARTLEY_BULLISH                                │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     RSI (14)                                 │
+└─────────────────────────────────────────────────────────────┘
+
+Features:
+✅ ด้านซ้ายบน: แสดง AI ทั้ง 5 ตัวแยก (Signal + Confidence)
+✅ ด้านขวาบน: Consensus Badge (สรุปรวม)
+✅ ด้านล่างซ้าย: Pattern ที่ตรวจพบ
+✅ Trading Levels: Entry, SL, TP1, TP2
+✅ EMAs: 20, 50
+✅ RSI: ด้านล่างพร้อม Overbought/Oversold zones
+✅ Watermark: Timestamp + จำนวน AI
+"""
 # ====================== Main Application ======================
 
 if __name__ == '__main__':
