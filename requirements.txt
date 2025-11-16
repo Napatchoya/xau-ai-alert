@@ -7,12 +7,16 @@ scikit-learn==1.6.1
 joblib
 python-dotenv
 tensorflow>=2.10.0
+keras==3.12.0
 matplotlib
 mplfinance
 Pillow
 opencv-python-headless
 numpy
 scipy>=1.6.0
-openai>=1.0.0
-google-generativeai>=0.3.0
+# AI APIs - ⚠️ ส่วนนี้สำคัญ!
+anthropic==0.43.0          # ← เพิ่มบรรทัดนี้!
+openai==2.8.0
+google-generativeai==0.8.5
+google-api-python-client==2.187.0
 
