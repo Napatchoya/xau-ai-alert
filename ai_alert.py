@@ -14104,6 +14104,50 @@ def debug_pattern_priority():
             "traceback": traceback.format_exc()
         }), 500
 
+@app.route('/manual-analyze')
+def manual_analyze():
+    """Trigger AI analysis manually"""
+    try:
+        print("🚀 Manual trigger received!")
+        analyze_gold_signals()
+        return jsonify({
+            "status": "success",
+            "message": "AI analysis triggered! Check logs for results."
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+@app.route('/test-ai-simple')
+def test_ai_simple():
+    """ทดสอบว่า AI classes ทำงานไหม"""
+    try:
+        # ทดสอบ API keys
+        api_keys = {
+            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
+            'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY'),
+            'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY'),
+            'GROK_API_KEY': os.getenv('GROK_API_KEY'),
+            'CLAUDE_API_KEY': os.getenv('CLAUDE_API_KEY'),
+        }
+        
+        api_keys = {k: v for k, v in api_keys.items() if v}
+        
+        return jsonify({
+            "status": "success",
+            "api_keys_found": len(api_keys),
+            "keys": list(api_keys.keys()),
+            "message": f"Found {len(api_keys)} API keys"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == "__main__":
     example_usage()
 
