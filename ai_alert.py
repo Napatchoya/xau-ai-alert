@@ -14148,8 +14148,6 @@ def test_ai_simple():
             "message": str(e)
         }), 500
 
-if __name__ == "__main__":
-    example_usage()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -14188,48 +14186,64 @@ Features:
 ✅ RSI: ด้านล่างพร้อม Overbought/Oversold zones
 ✅ Watermark: Timestamp + จำนวน AI
 """
-# ====================== Main Application ======================
+if __name__ == "__main__":
+    import threading
+    import time
+    
+    print("="*60)
+    print("🚀 XAU/USD AI Alert System Starting...")
+    print("="*60)
+    
+    def run_startup_analysis():
+        """รันทันทีตอน startup (เพื่อทดสอบ)"""
+        print("\n⏳ Waiting 15 seconds before first analysis...")
+        time.sleep(15)
+        
+        try:
+            print("\n🎯 STARTUP ANALYSIS")
+            analyze_gold_signals()
+            print("✅ Startup analysis complete!\n")
+        except Exception as e:
+            print(f"❌ Startup error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def run_periodic_analysis():
+        """รันทุก 1 ชั่วโมง"""
+        print("🤖 Periodic analysis thread started")
+        
+        # รอให้ startup analysis เสร็จก่อน
+        time.sleep(60)
+        
+        while True:
+            try:
+                current_time = datetime.now(ZoneInfo("Asia/Bangkok"))
+                print(f"\n⏰ Periodic Analysis at {current_time.strftime('%H:%M:%S')}")
+                
+                analyze_gold_signals()
+                
+                print("⏳ Next analysis in 1 hour...")
+                
+            except Exception as e:
+                print(f"❌ Periodic error: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            time.sleep(3600)  # 1 hour
+    
+    # Start threads
+    startup_thread = threading.Thread(target=run_startup_analysis, daemon=True)
+    startup_thread.start()
+    print("✅ Startup analysis scheduled")
+    
+    periodic_thread = threading.Thread(target=run_periodic_analysis, daemon=True)
+    periodic_thread.start()
+    print("✅ Periodic analysis scheduled")
+    
+    # Start Flask
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🌐 Starting Flask server on port {port}")
+    print("="*60 + "\n")
+    
+    app.run(host='0.0.0.0', port=port, debug=False)
 
-if __name__ == '__main__':
-    print("=" * 70)
-    print("🤖 XAU AI Trading Bot v3.0 Starting...")
-    print("=" * 70)
-    print(f"Health Check: /health")
-    print(f"System 1 - Original: /run-ai")
-    print(f"System 2 - Classic Patterns: /run-pattern-bot")
-    print(f"System 3 - Harmonic + Elliott: /run-harmonic-bot  ⭐ NEW!")
-    print(f"\nTest Endpoints:")
-    print(f"   • /test-harmonic")
-    print(f"   • /test-harmonic-send")
-    print(f"   • /test-specific-harmonic?pattern=GARTLEY")
-    print(f"   • /harmonic-status")
-    print(f"\nStatus:")
-    print(f"   • /pattern-status")
-    print(f"   • /status")
-    print("=" * 70)
-    print(f"Libraries Available:")
-    print(f"   • TensorFlow: {'✅' if HAS_TENSORFLOW else '❌'}")
-    print(f"   • Scikit-learn: {'✅' if HAS_SKLEARN else '❌'}")
-    print(f"   • TA-Lib: {'✅' if HAS_TA else '❌'}")
-    print(f"   • Charts: {'✅' if HAS_CHARTS else '❌'}")
-    print("=" * 70)
-    print(f"Configuration:")
-    print(f"   • Bot Token: {'✅ Configured' if BOT_TOKEN else '❌ Missing'}")
-    print(f"   • Chat ID: {'✅ Configured' if CHAT_ID else '❌ Missing'}")
-    print(f"   • API Key: {'✅ Configured' if API_KEY else '❌ Missing'}")
-    print("=" * 70)
-    print("🎯 Harmonic Patterns Enabled:")
-    print("   • GARTLEY, BUTTERFLY, BAT, CRAB, AB=CD")
-    print("   • ELLIOTT WAVE 5 (Impulse)")
-    print("   • ELLIOTT WAVE 3 (Corrective ABC)")
-    print("=" * 70)
-    print("🚀 Ready for AI-powered trading!")
-    print("💰 Asset: XAU/USD | Timeframe: 1H")
-    print("📊 3 Independent Systems Running")
-    print("=" * 70)
-    
-    # Get port from environment
-    port = int(os.environ.get("PORT", 5000))
-    
-    # Run the Flask app
-    app.run(host="0.0.0.0", port=port, debug=False)
