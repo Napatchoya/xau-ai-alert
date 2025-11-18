@@ -538,102 +538,162 @@ class ClaudeAnalyst(BaseAnalyst):
 # ====================== Multi-Analyst System ======================
 
 class MultiAnalystSystem:
-    def __init__(self, api_keys: Dict[str, str]):
-        self.analysts = []
+    def __init__(self, api_keys):
+        self.api_keys = api_keys
 
-        if api_keys.get('OPENAI_API_KEY'):
-            self.analysts.append(OpenAIAnalyst(api_keys['OPENAI_API_KEY']))
-        if api_keys.get('GEMINI_API_KEY'):
-            self.analysts.append(GeminiAnalyst(api_keys['GEMINI_API_KEY']))
-        if api_keys.get('DEEPSEEK_API_KEY'):
-            self.analysts.append(DeepSeekAnalyst(api_keys['DEEPSEEK_API_KEY']))
-        if api_keys.get('GROK_API_KEY'):
-            self.analysts.append(GrokAnalyst(api_keys['GROK_API_KEY']))
-        if api_keys.get('CLAUDE_API_KEY'):
-            self.analysts.append(ClaudeAnalyst(api_keys['CLAUDE_API_KEY']))
+    # ---------- Unified AI Response ----------
+    def _standardize(self, text):
+        text = text.lower()
 
-        print(f"✅ Initialized {len(self.analysts)} AI analysts")
+        if "buy" in text:
+            sig = "BUY"
+        elif "sell" in text:
+            sig = "SELL"
+        else:
+            sig = "NEUTRAL"
 
-
-    def get_consensus(self, market_data: Dict, news: List, economic_data: Dict) -> Dict:
-        print("\n🤖 Multi-AI Analysis...")
-        analyses = []
-
-        for analyst in self.analysts:
-            try:
-                print(f"   📊 {analyst.name}...")
-
-                analysis = analyst.analyze(market_data, news, economic_data)
-
-                # validate result
-                if not isinstance(analysis, dict):
-                    raise ValueError(f"{analyst.name} returned non-dict: {analysis}")
-
-                if "signal" not in analysis:
-                    raise ValueError(f"{analyst.name} missing 'signal' key: {analysis}")
-
-                if "confidence" not in analysis:
-                    analysis["confidence"] = 50  # default
-
-                print(f"      ✔ {analyst.name} result = {analysis}")
-                analyses.append(analysis)
-
-            except Exception as e:
-                error_msg = {
-                    "signal": "NEUTRAL",
-                    "confidence": 0,
-                    "error": str(e),
-                    "source": analyst.name
-                }
-                print(f"      ❌ {analyst.name} ERROR:", str(e))
-                analyses.append(error_msg)
-
-        return self._calculate_consensus(analyses, market_data)
-
-
-    def _calculate_consensus(self, analyses: List[Dict], market_data: Dict) -> Dict:
-        if not analyses:
-            print("❌ ERROR: No analyses returned!")
-            return {
-                "final_signal": "NEUTRAL",
-                "consensus_confidence": 0,
-                "votes": {"BUY": 0, "SELL": 0, "NEUTRAL": 1},
-                "agreement_rate": 0,
-                "entry_price": market_data.get("current_price", 0),
-                "individual_analyses": []
-            }
-
-        votes = {'BUY': 0, 'SELL': 0, 'NEUTRAL': 0}
-        confidences = {'BUY': [], 'SELL': [], 'NEUTRAL': []}
-
-        for analysis in analyses:
-            signal = analysis.get("signal", "NEUTRAL")
-            confidence = float(analysis.get("confidence", 50))
-
-            if signal not in votes:
-                signal = "NEUTRAL"
-
-            votes[signal] += 1
-            confidences[signal].append(confidence)
-
-        final_signal = max(votes, key=votes.get)
-        avg_confidence = (
-            sum(confidences[final_signal]) / len(confidences[final_signal])
-            if confidences[final_signal] else 50
-        )
-
-        consensus = {
-            "final_signal": final_signal,
-            "consensus_confidence": round(avg_confidence, 1),
-            "votes": votes,
-            "agreement_rate": round(votes[final_signal] / len(analyses) * 100, 1),
-            "entry_price": market_data.get("current_price", 0),
-            "individual_analyses": analyses
+        return {
+            "signal": sig,
+            "confidence": 70 if sig != "NEUTRAL" else 40,
+            "entry": None,
+            "tp": [],
+            "sl": None,
+            "raw": text
         }
 
-        print(f"\n✅ Consensus: {final_signal} ({avg_confidence:.1f}%)")
-        return consensus
+    # ---------- OpenAI ----------
+    def ask_openai(self, prompt):
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.api_keys['OPENAI_API_KEY'])
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150
+            )
+            text = resp.choices[0].message.content
+            return self._standardize(text)
+        except:
+            return self._standardize("neutral")
 
+    # ---------- Gemini ----------
+    def ask_gemini(self, prompt):
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_keys['GEMINI_API_KEY'])
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            text = model.generate_content(prompt).text
+            return self._standardize(text)
+        except:
+            return self._standardize("neutral")
+
+    # ---------- DeepSeek ----------
+    def ask_deepseek(self, prompt):
+        try:
+            import requests
+            url = "https://api.deepseek.com/v1/chat/completions"
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 150
+            }
+            r = requests.post(url, json=payload, headers={
+                "Authorization": f"Bearer {self.api_keys['DEEPSEEK_API_KEY']}",
+                "Content-Type": "application/json"
+            })
+            text = r.json()["choices"][0]["message"]["content"]
+            return self._standardize(text)
+        except:
+            return self._standardize("neutral")
+
+    # ---------- GROK ----------
+    def ask_grok(self, prompt):
+        try:
+            import requests
+            url = "https://api.x.ai/v1/chat/completions"
+            payload = {
+                "model": "grok-2-latest",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 150
+            }
+            r = requests.post(url, json=payload, headers={
+                "Authorization": f"Bearer {self.api_keys['GROK_API_KEY']}"
+            })
+            text = r.json()["choices"][0]["message"]["content"]
+            return self._standardize(text)
+        except:
+            return self._standardize("neutral")
+
+    # ---------- CLAUDE ----------
+    def ask_claude(self, prompt):
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=self.api_keys['CLAUDE_API_KEY'])
+            resp = client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=150,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = resp.content[0].text
+            return self._standardize(text)
+        except:
+            return self._standardize("neutral")
+
+    # ---------- Consensus ----------
+    def get_consensus(self, market_data, news, economic):
+        prompt = f"""
+You are an expert gold trader. Given this data:
+Market: {market_data}
+News: {news[:3]}
+Economic: {economic}
+
+Return only BUY, SELL or NEUTRAL with short reasoning.
+"""
+
+        results = []
+        
+        if "OPENAI_API_KEY" in self.api_keys:
+            results.append(self.ask_openai(prompt))
+
+        if "GEMINI_API_KEY" in self.api_keys:
+            results.append(self.ask_gemini(prompt))
+
+        if "DEEPSEEK_API_KEY" in self.api_keys:
+            results.append(self.ask_deepseek(prompt))
+
+        if "GROK_API_KEY" in self.api_keys:
+            results.append(self.ask_grok(prompt))
+
+        if "CLAUDE_API_KEY" in self.api_keys:
+            results.append(self.ask_claude(prompt))
+
+        # Final vote
+        signals = [r["signal"] for r in results]
+
+        buy = signals.count("BUY")
+        sell = signals.count("SELL")
+        neu = signals.count("NEUTRAL")
+
+        if buy > sell and buy >= 2:
+            final = "BUY"
+        elif sell > buy and sell >= 2:
+            final = "SELL"
+        else:
+            final = "NEUTRAL"
+
+        agreement_rate = int(max(buy, sell, neu) / len(signals) * 100)
+
+        return {
+            "final_signal": final,
+            "agreement_rate": agreement_rate,
+            "entry_price": market_data["current_price"],
+            "take_profit_1": market_data["current_price"] * (1.002 if final=="BUY" else 0.998),
+            "take_profit_2": market_data["current_price"] * (1.004 if final=="BUY" else 0.996),
+            "take_profit_3": market_data["current_price"] * (1.006 if final=="BUY" else 0.994),
+            "stop_loss": market_data["current_price"] * (0.995 if final=="BUY" else 1.005),
+            "votes": signals,
+            "all_ai": results
+        }
 
 # ====================== Chart Generation Functions ======================
 def draw_enhanced_pattern_lines(ax, df, pattern_info):
