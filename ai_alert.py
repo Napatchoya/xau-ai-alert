@@ -540,7 +540,7 @@ class ClaudeAnalyst(BaseAnalyst):
 class MultiAnalystSystem:
     def __init__(self, api_keys: Dict[str, str]):
         self.analysts = []
-        
+
         if api_keys.get('OPENAI_API_KEY'):
             self.analysts.append(OpenAIAnalyst(api_keys['OPENAI_API_KEY']))
         if api_keys.get('GEMINI_API_KEY'):
@@ -551,45 +551,88 @@ class MultiAnalystSystem:
             self.analysts.append(GrokAnalyst(api_keys['GROK_API_KEY']))
         if api_keys.get('CLAUDE_API_KEY'):
             self.analysts.append(ClaudeAnalyst(api_keys['CLAUDE_API_KEY']))
-        
+
         print(f"✅ Initialized {len(self.analysts)} AI analysts")
-    
+
+
     def get_consensus(self, market_data: Dict, news: List, economic_data: Dict) -> Dict:
         print("\n🤖 Multi-AI Analysis...")
         analyses = []
-        
+
         for analyst in self.analysts:
-            print(f"   📊 {analyst.name}...")
-            analysis = analyst.analyze(market_data, news, economic_data)
-            analyses.append(analysis)
-        
+            try:
+                print(f"   📊 {analyst.name}...")
+
+                analysis = analyst.analyze(market_data, news, economic_data)
+
+                # validate result
+                if not isinstance(analysis, dict):
+                    raise ValueError(f"{analyst.name} returned non-dict: {analysis}")
+
+                if "signal" not in analysis:
+                    raise ValueError(f"{analyst.name} missing 'signal' key: {analysis}")
+
+                if "confidence" not in analysis:
+                    analysis["confidence"] = 50  # default
+
+                print(f"      ✔ {analyst.name} result = {analysis}")
+                analyses.append(analysis)
+
+            except Exception as e:
+                error_msg = {
+                    "signal": "NEUTRAL",
+                    "confidence": 0,
+                    "error": str(e),
+                    "source": analyst.name
+                }
+                print(f"      ❌ {analyst.name} ERROR:", str(e))
+                analyses.append(error_msg)
+
         return self._calculate_consensus(analyses, market_data)
-    
+
+
     def _calculate_consensus(self, analyses: List[Dict], market_data: Dict) -> Dict:
+        if not analyses:
+            print("❌ ERROR: No analyses returned!")
+            return {
+                "final_signal": "NEUTRAL",
+                "consensus_confidence": 0,
+                "votes": {"BUY": 0, "SELL": 0, "NEUTRAL": 1},
+                "agreement_rate": 0,
+                "entry_price": market_data.get("current_price", 0),
+                "individual_analyses": []
+            }
+
         votes = {'BUY': 0, 'SELL': 0, 'NEUTRAL': 0}
         confidences = {'BUY': [], 'SELL': [], 'NEUTRAL': []}
-        
+
         for analysis in analyses:
-            signal = analysis.get('signal', 'NEUTRAL')
-            confidence = analysis.get('confidence', 50)
+            signal = analysis.get("signal", "NEUTRAL")
+            confidence = float(analysis.get("confidence", 50))
+
+            if signal not in votes:
+                signal = "NEUTRAL"
+
             votes[signal] += 1
             confidences[signal].append(confidence)
-        
+
         final_signal = max(votes, key=votes.get)
-        avg_confidence = sum(confidences[final_signal]) / len(confidences[final_signal]) if confidences[final_signal] else 50
-        
+        avg_confidence = (
+            sum(confidences[final_signal]) / len(confidences[final_signal])
+            if confidences[final_signal] else 50
+        )
+
         consensus = {
-            'final_signal': final_signal,
-            'consensus_confidence': round(avg_confidence, 1),
-            'votes': votes,
-            'agreement_rate': round(votes[final_signal] / len(analyses) * 100, 1),
-            'entry_price': market_data.get('current_price', 0),
-            'individual_analyses': analyses
+            "final_signal": final_signal,
+            "consensus_confidence": round(avg_confidence, 1),
+            "votes": votes,
+            "agreement_rate": round(votes[final_signal] / len(analyses) * 100, 1),
+            "entry_price": market_data.get("current_price", 0),
+            "individual_analyses": analyses
         }
-        
+
         print(f"\n✅ Consensus: {final_signal} ({avg_confidence:.1f}%)")
         return consensus
-
 
 
 # ====================== Chart Generation Functions ======================
