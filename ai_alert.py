@@ -541,51 +541,84 @@ class MultiAnalystSystem:
     def __init__(self, api_keys):
         self.api_keys = api_keys
 
-    # ---------- Unified AI Response ----------
-    def _standardize(self, text):
-        text = text.lower()
+    # ---------- Normalize AI Output ----------
+    def _wrap(self, model_name, text):
+        txt = text.lower()
 
-        if "buy" in text:
+        if "buy" in txt:
             sig = "BUY"
-        elif "sell" in text:
+        elif "sell" in txt:
             sig = "SELL"
         else:
             sig = "NEUTRAL"
 
         return {
+            "model": model_name,
             "signal": sig,
-            "confidence": 70 if sig != "NEUTRAL" else 40,
-            "entry": None,
-            "tp": [],
-            "sl": None,
-            "raw": text
+            "reason": text.strip()
         }
+
+    # ---------- Prompt Builder ----------
+    def build_prompt(self, market_data, news, economic):
+        return f"""
+You are an expert gold (XAUUSD) analyst.
+
+Analyze the market based on the following inputs:
+
+📌 MARKET DATA
+- Current Price: {market_data['current_price']}
+- RSI: {market_data.get('rsi')}
+- MACD: {market_data.get('macd')}
+- EMA20: {market_data.get('ema_20')}
+- EMA50: {market_data.get('ema_50')}
+- PATTERN: {market_data.get('pattern_detected')}
+
+📌 BOLLINGER BANDS
+- Upper: {market_data.get('bb_upper')}
+- Middle: {market_data.get('bb_middle')}
+- Lower: {market_data.get('bb_lower')}
+
+📌 NEWS (Top 3)
+{news[:3]}
+
+📌 ECONOMIC DATA
+{economic}
+
+------------------------------------------
+✦ REQUIRED OUTPUT FORMAT (STRICT) ✦
+1) SIGNAL: BUY or SELL or NEUTRAL  
+2) REASON: Explain clearly using the data above.  
+   - Which market indicators influenced the signal?  
+   - Which news events mattered?  
+   - Which economic indicators were important?
+Return ONLY these two sections.
+"""
 
     # ---------- OpenAI ----------
     def ask_openai(self, prompt):
         try:
             from openai import OpenAI
             client = OpenAI(api_key=self.api_keys['OPENAI_API_KEY'])
-            resp = client.chat.completions.create(
+            r = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=150
+                max_tokens=250
             )
-            text = resp.choices[0].message.content
-            return self._standardize(text)
-        except:
-            return self._standardize("neutral")
+            text = r.choices[0].message.content
+            return self._wrap("OPENAI", text)
+        except Exception as e:
+            return self._wrap("OPENAI", f"NEUTRAL - error: {e}")
 
     # ---------- Gemini ----------
     def ask_gemini(self, prompt):
         try:
             import google.generativeai as genai
-            genai.configure(api_key=self.api_keys['GEMINI_API_KEY'])
+            genai.configure(api_key=self.api_keys["GEMINI_API_KEY"])
             model = genai.GenerativeModel("gemini-1.5-flash")
             text = model.generate_content(prompt).text
-            return self._standardize(text)
-        except:
-            return self._standardize("neutral")
+            return self._wrap("GEMINI", text)
+        except Exception as e:
+            return self._wrap("GEMINI", f"NEUTRAL - error: {e}")
 
     # ---------- DeepSeek ----------
     def ask_deepseek(self, prompt):
@@ -595,16 +628,16 @@ class MultiAnalystSystem:
             payload = {
                 "model": "deepseek-chat",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 150
+                "max_tokens": 250
             }
             r = requests.post(url, json=payload, headers={
                 "Authorization": f"Bearer {self.api_keys['DEEPSEEK_API_KEY']}",
                 "Content-Type": "application/json"
             })
             text = r.json()["choices"][0]["message"]["content"]
-            return self._standardize(text)
-        except:
-            return self._standardize("neutral")
+            return self._wrap("DEEPSEEK", text)
+        except Exception as e:
+            return self._wrap("DEEPSEEK", f"NEUTRAL - error: {e}")
 
     # ---------- GROK ----------
     def ask_grok(self, prompt):
@@ -614,44 +647,37 @@ class MultiAnalystSystem:
             payload = {
                 "model": "grok-2-latest",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 150
+                "max_tokens": 250
             }
             r = requests.post(url, json=payload, headers={
                 "Authorization": f"Bearer {self.api_keys['GROK_API_KEY']}"
             })
             text = r.json()["choices"][0]["message"]["content"]
-            return self._standardize(text)
-        except:
-            return self._standardize("neutral")
+            return self._wrap("GROK", text)
+        except Exception as e:
+            return self._wrap("GROK", f"NEUTRAL - error: {e}")
 
-    # ---------- CLAUDE ----------
+    # ---------- Claude ----------
     def ask_claude(self, prompt):
         try:
             import anthropic
-            client = anthropic.Anthropic(api_key=self.api_keys['CLAUDE_API_KEY'])
-            resp = client.messages.create(
+            client = anthropic.Anthropic(api_key=self.api_keys["CLAUDE_API_KEY"])
+            r = client.messages.create(
                 model="claude-3-haiku-20240307",
-                max_tokens=150,
+                max_tokens=250,
                 messages=[{"role": "user", "content": prompt}]
             )
-            text = resp.content[0].text
-            return self._standardize(text)
-        except:
-            return self._standardize("neutral")
+            text = r.content[0].text
+            return self._wrap("CLAUDE", text)
+        except Exception as e:
+            return self._wrap("CLAUDE", f"NEUTRAL - error: {e}")
 
-    # ---------- Consensus ----------
-    def get_consensus(self, market_data, news, economic):
-        prompt = f"""
-You are an expert gold trader. Given this data:
-Market: {market_data}
-News: {news[:3]}
-Economic: {economic}
-
-Return only BUY, SELL or NEUTRAL with short reasoning.
-"""
+    # ---------- Run All Models ----------
+    def analyze_all(self, market_data, news, economic):
+        prompt = self.build_prompt(market_data, news, economic)
 
         results = []
-        
+
         if "OPENAI_API_KEY" in self.api_keys:
             results.append(self.ask_openai(prompt))
 
@@ -667,33 +693,7 @@ Return only BUY, SELL or NEUTRAL with short reasoning.
         if "CLAUDE_API_KEY" in self.api_keys:
             results.append(self.ask_claude(prompt))
 
-        # Final vote
-        signals = [r["signal"] for r in results]
-
-        buy = signals.count("BUY")
-        sell = signals.count("SELL")
-        neu = signals.count("NEUTRAL")
-
-        if buy > sell and buy >= 2:
-            final = "BUY"
-        elif sell > buy and sell >= 2:
-            final = "SELL"
-        else:
-            final = "NEUTRAL"
-
-        agreement_rate = int(max(buy, sell, neu) / len(signals) * 100)
-
-        return {
-            "final_signal": final,
-            "agreement_rate": agreement_rate,
-            "entry_price": market_data["current_price"],
-            "take_profit_1": market_data["current_price"] * (1.002 if final=="BUY" else 0.998),
-            "take_profit_2": market_data["current_price"] * (1.004 if final=="BUY" else 0.996),
-            "take_profit_3": market_data["current_price"] * (1.006 if final=="BUY" else 0.994),
-            "stop_loss": market_data["current_price"] * (0.995 if final=="BUY" else 1.005),
-            "votes": signals,
-            "all_ai": results
-        }
+        return results
 
 # ====================== Chart Generation Functions ======================
 def draw_enhanced_pattern_lines(ax, df, pattern_info):
