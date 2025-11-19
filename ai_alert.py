@@ -14234,7 +14234,6 @@ def test_ai_simple():
             'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY'),
             'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY'),
             'GROK_API_KEY': os.getenv('GROK_API_KEY'),
-            'CLAUDE_API_KEY': os.getenv('CLAUDE_API_KEY'),
         }
         
         api_keys = {k: v for k, v in api_keys.items() if v}
