@@ -94,12 +94,20 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # Configure LLMs
 if OPENAI_API_KEY and HAS_OPENAI:
+    import openai
     openai.api_key = OPENAI_API_KEY
     print("✅ OpenAI configured")
 
 if GEMINI_API_KEY and HAS_GEMINI:
+    import google.generativeai as genai
     genai.configure(api_key=GEMINI_API_KEY)
     print("✅ Gemini configured")
+
+if DEEPSEEK_API_KEY:
+    print("✅ DeepSeek API key loaded")
+
+if GROK_API_KEY:
+    print("✅ Grok API key loaded")
 
 app = Flask(__name__)
 
