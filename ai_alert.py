@@ -545,163 +545,222 @@ class ClaudeAnalyst(BaseAnalyst):
 
 # ====================== Multi-Analyst System ======================
 
+
 class MultiAnalystSystem:
-    def __init__(self, api_keys):
-        self.api_keys = api_keys
+    PROMPT_TEMPLATE = """
+You are a financial analyst AI specializing in XAUUSD price movement prediction.
+You will receive real market indicators and must return EXACTLY in the format below.
 
-    # ---------- Normalize AI Output ----------
-    def _wrap(self, model_name, text):
-        txt = text.lower()
+DATA YOU RECEIVE:
+- Recent OHLC (string/table): {ohlc}
+- Current Price: {current_price}
+- RSI: {rsi}
+- EMA20: {ema20}
+- EMA50: {ema50}
+- MACD: {macd}
+- Bollinger Bands:
+    Upper: {bb_upper}
+    Middle: {bb_middle}
+    Lower: {bb_lower}
+    Width: {bb_width}
+- Pattern Detected: {pattern}
 
-        if "buy" in txt:
-            sig = "BUY"
-        elif "sell" in txt:
-            sig = "SELL"
-        else:
-            sig = "NEUTRAL"
+TASK:
+1) Give a short Prediction: BUY / SELL / SIDEWAY / NEUTRAL
+2) Provide a short Reason section explaining exactly which of the data points above influenced the prediction.
+3) Provide a "Data Used" section that enumerates which indicator(s) you used (RSI, EMA, MACD, Bollinger, Pattern, News, Economic).
 
-        return {
-            "model": model_name,
-            "signal": sig,
-            "reason": text.strip()
-        }
+OUTPUT FORMAT (STRICT, return ONLY this):
+Prediction: <BUY/SELL/SIDEWAY/NEUTRAL>
 
-    # ---------- Prompt Builder ----------
-    def build_prompt(self, market_data, news, economic):
-        return f"""
-You are an expert gold (XAUUSD) analyst.
+Reason:
+- <one line describing influence of indicator #1>
+- <one line describing influence of indicator #2>
 
-Analyze the market based on the following inputs:
-
-📌 MARKET DATA
-- Current Price: {market_data['current_price']}
-- RSI: {market_data.get('rsi')}
-- MACD: {market_data.get('macd')}
-- EMA20: {market_data.get('ema_20')}
-- EMA50: {market_data.get('ema_50')}
-- PATTERN: {market_data.get('pattern_detected')}
-
-📌 BOLLINGER BANDS
-- Upper: {market_data.get('bb_upper')}
-- Middle: {market_data.get('bb_middle')}
-- Lower: {market_data.get('bb_lower')}
-
-📌 NEWS (Top 3)
-{news[:3]}
-
-📌 ECONOMIC DATA
-{economic}
-
-------------------------------------------
-✦ REQUIRED OUTPUT FORMAT (STRICT) ✦
-1) SIGNAL: BUY or SELL or NEUTRAL  
-2) REASON: Explain clearly using the data above.  
-   - Which market indicators influenced the signal?  
-   - Which news events mattered?  
-   - Which economic indicators were important?
-Return ONLY these two sections.
+Data Used:
+- RSI = <value>
+- EMA20 = <value>, EMA50 = <value>
+- MACD = <value>
+- BB Upper/Middle/Lower = <u>/<m>/<l> (width=<w>)
+- Pattern = <pattern string>
+- News highlights: <one-line summary if any> (optional)
+- Economic highlights: <one-line summary if any> (optional)
 """
 
-    # ---------- OpenAI ----------
-    def ask_openai(self, prompt):
+    def __init__(self, api_keys: Dict[str, str], executor_workers: int = 10):
+        self.api_keys = api_keys or {}
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=executor_workers)
+
+    def _build_prompt(self, market_data: Dict[str, Any], news: List[str], economic: Dict[str, Any]) -> str:
+        ohlc = market_data.get("ohlc_history")
+        if ohlc is None:
+            last = market_data.get("last_candle")
+            if last and isinstance(last, dict):
+                ohlc = f"Open:{last.get('open')} High:{last.get('high')} Low:{last.get('low')} Close:{last.get('close')}"
+            else:
+                ohlc = "N/A"
+
+        bb_upper = market_data.get("bb_upper", "N/A")
+        bb_middle = market_data.get("bb_middle", "N/A")
+        bb_lower = market_data.get("bb_lower", "N/A")
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=self.api_keys['OPENAI_API_KEY'])
-            r = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=250
-            )
-            text = r.choices[0].message.content
-            return self._wrap("OPENAI", text)
-        except Exception as e:
-            return self._wrap("OPENAI", f"NEUTRAL - error: {e}")
+            bb_width = float(bb_upper) - float(bb_lower) if (bb_upper != "N/A" and bb_lower != "N/A") else "N/A"
+        except Exception:
+            bb_width = "N/A"
 
-    # ---------- Gemini ----------
-    def ask_gemini(self, prompt):
+        prompt = self.PROMPT_TEMPLATE.format(
+            ohlc=ohlc,
+            current_price=market_data.get("current_price", "N/A"),
+            rsi=market_data.get("rsi", "N/A"),
+            ema20=market_data.get("ema_20", "N/A"),
+            ema50=market_data.get("ema_50", "N/A"),
+            macd=market_data.get("macd", "N/A"),
+            bb_upper=bb_upper,
+            bb_middle=bb_middle,
+            bb_lower=bb_lower,
+            bb_width=bb_width,
+            pattern=market_data.get("pattern_detected", "NO_PATTERN"),
+        )
+
+        top_news = "\n".join([f"- {n}" for n in (news or [])[:3]]) or "- None"
+        econ_summary = json.dumps(economic or {}, ensure_ascii=False)
+        prompt += f"\n\nTOP NEWS (use only if relevant):\n{top_news}\n\nECONOMIC SUMMARY (use only if relevant):\n{econ_summary}\n"
+        return prompt
+
+    def _parse_signal(self, text: str) -> str:
+        t = (text or "").upper()
+        if "BUY" in t and "SELL" not in t:
+            return "BUY"
+        if "SELL" in t and "BUY" not in t:
+            return "SELL"
+        if "SIDEWAY" in t or "SIDEWAYS" in t:
+            return "SIDEWAY"
+        return "NEUTRAL"
+
+    def _wrap_result(self, model_name: str, raw_text: str) -> Dict[str, Any]:
+        signal = self._parse_signal(raw_text)
+        reason = raw_text
+        if "REASON:" in raw_text.upper():
+            try:
+                reason = raw_text.upper().split("REASON:", 1)[1].strip()
+            except Exception:
+                reason = raw_text
+        return {"model": model_name, "signal": signal, "reason": reason.strip(), "raw": raw_text.strip()}
+
+    async def _run_blocking(self, fn, *args, timeout=_DEFAULT_TIMEOUT):
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(self._executor, lambda: fn(*args))
+        return await asyncio.wait_for(task, timeout=timeout)
+
+    # -------------- model wrappers (async) --------------
+    async def ask_openai(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        def _call_openai_blocking():
+            try:
+                from openai import OpenAI as OpenAIClient
+                client = OpenAIClient(api_key=self.api_keys.get("OPENAI_API_KEY"))
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=300
+                )
+                text = resp.choices[0].message.content if resp.choices else ""
+                return text
+            except Exception as e:
+                return f"ERROR (OpenAI): {e}"
+
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_keys["GEMINI_API_KEY"])
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            text = model.generate_content(prompt).text
-            return self._wrap("GEMINI", text)
+            raw = await self._run_blocking(_call_openai_blocking, timeout=timeout)
+            return self._wrap_result("OPENAI", raw)
         except Exception as e:
-            return self._wrap("GEMINI", f"NEUTRAL - error: {e}")
+            return self._wrap_result("OPENAI", f"NEUTRAL - error: {e}")
 
-    # ---------- DeepSeek ----------
-    def ask_deepseek(self, prompt):
+    async def ask_gemini(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        def _call_gemini_blocking():
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_keys.get("GEMINI_API_KEY"))
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                res = model.generate_content(prompt)
+                text = getattr(res, "text", None) or (res.get("candidates")[0].get("content") if isinstance(res, dict) else str(res))
+                return text
+            except Exception as e:
+                return f"ERROR (Gemini): {e}"
+
         try:
-            import requests
-            url = "https://api.deepseek.com/v1/chat/completions"
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 250
-            }
-            r = requests.post(url, json=payload, headers={
-                "Authorization": f"Bearer {self.api_keys['DEEPSEEK_API_KEY']}",
-                "Content-Type": "application/json"
-            })
-            text = r.json()["choices"][0]["message"]["content"]
-            return self._wrap("DEEPSEEK", text)
+            raw = await self._run_blocking(_call_gemini_blocking, timeout=timeout)
+            return self._wrap_result("GEMINI", raw)
         except Exception as e:
-            return self._wrap("DEEPSEEK", f"NEUTRAL - error: {e}")
+            return self._wrap_result("GEMINI", f"NEUTRAL - error: {e}")
 
-    # ---------- GROK ----------
-    def ask_grok(self, prompt):
+    async def ask_deepseek(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        def _call_deepseek_blocking():
+            try:
+                import requests
+                url = "https://api.deepseek.com/v1/chat/completions"
+                payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "max_tokens": 300}
+                headers = {"Authorization": f"Bearer {self.api_keys.get('DEEPSEEK_API_KEY')}", "Content-Type": "application/json"}
+                r = requests.post(url, json=payload, headers=headers, timeout=25)
+                jr = r.json()
+                text = jr["choices"][0]["message"]["content"] if isinstance(jr, dict) and "choices" in jr else json.dumps(jr, ensure_ascii=False)
+                return text
+            except Exception as e:
+                return f"ERROR (DeepSeek): {e}"
+
         try:
-            import requests
-            url = "https://api.x.ai/v1/chat/completions"
-            payload = {
-                "model": "grok-2-latest",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 250
-            }
-            r = requests.post(url, json=payload, headers={
-                "Authorization": f"Bearer {self.api_keys['GROK_API_KEY']}"
-            })
-            text = r.json()["choices"][0]["message"]["content"]
-            return self._wrap("GROK", text)
+            raw = await self._run_blocking(_call_deepseek_blocking, timeout=timeout)
+            return self._wrap_result("DEEPSEEK", raw)
         except Exception as e:
-            return self._wrap("GROK", f"NEUTRAL - error: {e}")
+            return self._wrap_result("DEEPSEEK", f"NEUTRAL - error: {e}")
 
-    # ---------- Claude ----------
-    def ask_claude(self, prompt):
+    async def ask_grok(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        def _call_grok_blocking():
+            try:
+                import requests
+                url = "https://api.x.ai/v1/chat/completions"
+                payload = {"model": "grok-2-latest", "messages": [{"role": "user", "content": prompt}], "max_tokens": 300}
+                headers = {"Authorization": f"Bearer {self.api_keys.get('GROK_API_KEY')}", "Content-Type": "application/json"}
+                r = requests.post(url, json=payload, headers=headers, timeout=25)
+                jr = r.json()
+                text = jr["choices"][0]["message"]["content"] if isinstance(jr, dict) and "choices" in jr else json.dumps(jr, ensure_ascii=False)
+                return text
+            except Exception as e:
+                return f"ERROR (Grok): {e}"
+
         try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=self.api_keys["CLAUDE_API_KEY"])
-            r = client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=250,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            text = r.content[0].text
-            return self._wrap("CLAUDE", text)
+            raw = await self._run_blocking(_call_grok_blocking, timeout=timeout)
+            return self._wrap_result("GROK", raw)
         except Exception as e:
-            return self._wrap("CLAUDE", f"NEUTRAL - error: {e}")
+            return self._wrap_result("GROK", f"NEUTRAL - error: {e}")
 
-    # ---------- Run All Models ----------
-    def analyze_all(self, market_data, news, economic):
-        prompt = self.build_prompt(market_data, news, economic)
-
-        results = []
-
+    # -------------- public: run all models concurrently --------------
+    async def analyze_all(self, market_data: Dict[str, Any], news: List[str], economic: Dict[str, Any], per_model_timeout: int = _DEFAULT_TIMEOUT) -> List[Dict[str, Any]]:
+        prompt = self._build_prompt(market_data, news, economic)
+        tasks = []
         if "OPENAI_API_KEY" in self.api_keys:
-            results.append(self.ask_openai(prompt))
-
+            tasks.append(self.ask_openai(prompt, timeout=per_model_timeout))
         if "GEMINI_API_KEY" in self.api_keys:
-            results.append(self.ask_gemini(prompt))
-
+            tasks.append(self.ask_gemini(prompt, timeout=per_model_timeout))
         if "DEEPSEEK_API_KEY" in self.api_keys:
-            results.append(self.ask_deepseek(prompt))
-
+            tasks.append(self.ask_deepseek(prompt, timeout=per_model_timeout))
         if "GROK_API_KEY" in self.api_keys:
-            results.append(self.ask_grok(prompt))
-
-        if "CLAUDE_API_KEY" in self.api_keys:
-            results.append(self.ask_claude(prompt))
-
+            tasks.append(self.ask_grok(prompt, timeout=per_model_timeout))
+        if not tasks:
+            return []
+        results = await asyncio.gather(*tasks, return_exceptions=False)
         return results
+
+    def format_results_for_telegram(self, results: List[Dict[str, Any]], market_data: Dict[str, Any], pattern_info: Dict[str, Any] = None) -> str:
+        lines = []
+        header = f"🔎 AI Gold Predictions — {time.strftime('%Y-%m-%d %H:%M:%S')}\nXAUUSD: {market_data.get('current_price', 'N/A')}\nPattern: {market_data.get('pattern_detected', 'NO_PATTERN')}\n"
+        lines.append(header)
+        for r in results:
+            mdl = r.get("model", "UNKNOWN")
+            sig = r.get("signal", "NEUTRAL")
+            reason = r.get("reason", "").strip()
+            reason_preview = "\n".join(reason.splitlines()[:5])
+            raw = r.get("raw", "").strip()
+            lines.append(f"🟦 {mdl}\nPrediction: {sig}\nReason:\n{reason_preview}\n\nRaw:\n{raw}\n" + ("—" * 30))
+        return "\n".join(lines)
 
 # ====================== Chart Generation Functions ======================
 def draw_enhanced_pattern_lines(ax, df, pattern_info):
