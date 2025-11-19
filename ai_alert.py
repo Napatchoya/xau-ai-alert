@@ -521,28 +521,6 @@ class GrokAnalyst(BaseAnalyst):
         super().__init__(api_key, "Grok")
         self.client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
 
-class ClaudeAnalyst(BaseAnalyst):
-    """Claude - ใช้ Anthropic API"""
-    def __init__(self, api_key: str):
-        super().__init__(api_key, "Claude")
-        self.client = anthropic.Anthropic(api_key=api_key)
-    
-    def analyze(self, market_data, news, economic_data):
-        try:
-            prompt = OpenAIAnalyst._create_prompt(self, market_data, news, economic_data)
-            message = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=2048,
-                temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            result = OpenAIAnalyst._parse_response(self, message.content[0].text)
-            result['analyst'] = self.name
-            return result
-        except Exception as e:
-            print(f"❌ {self.name} error: {e}")
-            return self._get_fallback_response()
-
 # ====================== Multi-Analyst System ======================
 
 
