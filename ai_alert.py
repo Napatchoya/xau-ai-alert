@@ -499,27 +499,99 @@ Provide JSON:
         }
 
 class GeminiAnalyst(BaseAnalyst):
-    """Google Gemini - คล้าย OpenAI"""
+    """Google Gemini Analyst"""
     def __init__(self, api_key: str):
         super().__init__(api_key, "Gemini")
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
-    
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+
     def analyze(self, market_data, news, economic_data):
-        # ใช้โค้ดเดียวกับ OpenAI แต่เปลี่ยน API call
-        pass
+        prompt = build_prompt(market_data, news, economic_data)
+
+        try:
+            response = self.model.generate_content(prompt)
+            text = response.text.strip()
+
+            return {
+                "provider": self.name,
+                "raw": text,
+                "signal": extract_signal(text),
+                "reasoning": extract_reason(text)
+            }
+        except Exception as e:
+            return {
+                "provider": self.name,
+                "raw": str(e),
+                "signal": "NEUTRAL",
+                "reasoning": "Gemini error"
+            }
+
 
 class DeepSeekAnalyst(BaseAnalyst):
-    """DeepSeek - ใช้ OpenAI compatible API"""
+    """DeepSeek (OpenAI Compatible API)"""
     def __init__(self, api_key: str):
         super().__init__(api_key, "DeepSeek")
+        from openai import OpenAI
         self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
+    def analyze(self, market_data, news, economic_data):
+        prompt = build_prompt(market_data, news, economic_data)
+
+        try:
+            resp = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300
+            )
+            text = resp.choices[0].message.content.strip()
+
+            return {
+                "provider": self.name,
+                "raw": text,
+                "signal": extract_signal(text),
+                "reasoning": extract_reason(text)
+            }
+        except Exception as e:
+            return {
+                "provider": self.name,
+                "raw": str(e),
+                "signal": "NEUTRAL",
+                "reasoning": "DeepSeek error"
+            }
+
+
 class GrokAnalyst(BaseAnalyst):
-    """Grok - ใช้ OpenAI compatible API"""
+    """xAI Grok (OpenAI Compatible API)"""
     def __init__(self, api_key: str):
         super().__init__(api_key, "Grok")
+        from openai import OpenAI
         self.client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+
+    def analyze(self, market_data, news, economic_data):
+        prompt = build_prompt(market_data, news, economic_data)
+
+        try:
+            resp = self.client.chat.completions.create(
+                model="grok-2-latest",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300
+            )
+            text = resp.choices[0].message.content.strip()
+
+            return {
+                "provider": self.name,
+                "raw": text,
+                "signal": extract_signal(text),
+                "reasoning": extract_reason(text)
+            }
+        except Exception as e:
+            return {
+                "provider": self.name,
+                "raw": str(e),
+                "signal": "NEUTRAL",
+                "reasoning": "Grok error"
+            }
 
 # ====================== Multi-Analyst System ======================
 
