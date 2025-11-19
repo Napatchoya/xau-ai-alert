@@ -66,6 +66,8 @@ except ImportError:
     HAS_CHARTS = False
 
 # ========== NEW: LLM APIs ==========
+
+# ---------- OpenAI ----------
 try:
     import openai
     HAS_OPENAI = True
@@ -73,12 +75,32 @@ except ImportError:
     print("⚠️ OpenAI not available")
     HAS_OPENAI = False
 
+
+# ---------- Google Gemini ----------
 try:
     import google.generativeai as genai
     HAS_GEMINI = True
 except ImportError:
     print("⚠️ Gemini not available")
     HAS_GEMINI = False
+
+
+# ---------- DeepSeek (OpenAI-Compatible) ----------
+try:
+    from openai import OpenAI as _DeepSeekClient
+    HAS_DEEPSEEK = True
+except ImportError:
+    print("⚠️ DeepSeek client not available")
+    HAS_DEEPSEEK = False
+
+
+# ---------- xAI Grok (OpenAI-Compatible) ----------
+try:
+    from openai import OpenAI as _GrokClient
+    HAS_GROK = True
+except ImportError:
+    print("⚠️ Grok client not available")
+    HAS_GROK = False
 
 load_dotenv()
 
