@@ -25,6 +25,7 @@ import anthropic
 from openai import OpenAI
 import google.generativeai as genai
 import traceback
+from typing import Dict, List, Any
 
 # Try importing optional ML libraries
 try:
