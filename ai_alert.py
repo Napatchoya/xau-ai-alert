@@ -27,6 +27,8 @@ import google.generativeai as genai
 import traceback
 from typing import Dict, List, Any
 
+_DEFAULT_TIMEOUT = 30 
+
 # Try importing optional ML libraries
 try:
     from scipy import interpolate
