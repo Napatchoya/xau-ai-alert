@@ -827,6 +827,19 @@ Data Used:
         if not tasks:
             return []
         results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        # ******************** < เพิ่ม Logging ตรงนี้ > ********************
+        print("==================== AI Consensus Results ====================")
+        
+            
+        #Process Results และ Logging
+        valid_results = [res for res in all_results if not res['raw'].startswith('NEUTRAL - error') and not res['raw'].startswith('ERROR')]
+            
+        for result in results:
+            print(f"[{result['model']}]: Signal={result['signal']}, Raw Preview: {result['raw'][:50]}...")
+                
+        print("==============================================================")
+            # ******************** < สิ้นสุด Logging > ********************
         return results
 
     def format_results_for_telegram(self, results: List[Dict[str, Any]], market_data: Dict[str, Any], pattern_info: Dict[str, Any] = None) -> str:
