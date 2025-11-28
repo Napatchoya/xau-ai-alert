@@ -748,6 +748,7 @@ Data Used:
             raw = await self._run_blocking(_call_openai_blocking, timeout=timeout)
             return self._wrap_result("OPENAI", raw)
         except Exception as e:
+            print(f"❌ OPENAI Asynchronous Failure: {e}")
             return self._wrap_result("OPENAI", f"NEUTRAL - error: {e}")
 
     async def ask_gemini(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
@@ -766,6 +767,7 @@ Data Used:
             raw = await self._run_blocking(_call_gemini_blocking, timeout=timeout)
             return self._wrap_result("GEMINI", raw)
         except Exception as e:
+            print(f"❌ GEMINI Asynchronous Failure: {e}")
             return self._wrap_result("GEMINI", f"NEUTRAL - error: {e}")
 
     async def ask_deepseek(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
@@ -786,6 +788,7 @@ Data Used:
             raw = await self._run_blocking(_call_deepseek_blocking, timeout=timeout)
             return self._wrap_result("DEEPSEEK", raw)
         except Exception as e:
+            print(f"❌ DEEPSEEK Asynchronous Failure: {e}")
             return self._wrap_result("DEEPSEEK", f"NEUTRAL - error: {e}")
 
     async def ask_grok(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
@@ -806,6 +809,7 @@ Data Used:
             raw = await self._run_blocking(_call_grok_blocking, timeout=timeout)
             return self._wrap_result("GROK", raw)
         except Exception as e:
+            print(f"❌ GROK Asynchronous Failure: {e}")
             return self._wrap_result("GROK", f"NEUTRAL - error: {e}")
 
     # -------------- public: run all models concurrently --------------
