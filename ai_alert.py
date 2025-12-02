@@ -831,18 +831,25 @@ Data Used:
             return []
         results = await asyncio.gather(*tasks, return_exceptions=False)
         
-        # ******************** < เพิ่ม Logging ตรงนี้ > ********************
-        print("==================== AI Consensus Results ====================")
-        
-            
-        #Process Results และ Logging
-        valid_results = [res for res in all_results if not res['raw'].startswith('NEUTRAL - error') and not res['raw'].startswith('ERROR')]
-            
+        # ******************** < แก้ไข Logging Block เป็น Appending > ********************
+        GLOBAL_LOG_BUFFER.append("==================== AI Consensus Results (FINAL) ====================")
+    
+        valid_results = 0
         for result in results:
-            print(f"[{result['model']}]: Signal={result['signal']}, Raw Preview: {result['raw'][:50]}...")
-                
-        print("==============================================================")
-            # ******************** < สิ้นสุด Logging > ********************
+            log_message = ""
+            if "error" in result['raw'] or result['signal'] == 'NEUTRAL':
+                log_message = f"[{result['model']}]: ❌ FAILED or NEUTRAL. Raw Error/Signal: {result['raw']}"
+            else:
+                log_message = f"[{result['model']}]: ✅ Signal={result['signal']}, Reason Preview: {result['reason'][:30]}..."
+                valid_results += 1
+        
+            GLOBAL_LOG_BUFFER.append(log_message)
+
+        GLOBAL_LOG_BUFFER.append(f"Total Valid Signals: {valid_results}/{len(results)}")
+        GLOBAL_LOG_BUFFER.append("======================================================================")
+    
+        # ******************** < สิ้นสุด Logging Block > ********************
+    
         return results
 
     def format_results_for_telegram(self, results: List[Dict[str, Any]], market_data: Dict[str, Any], pattern_info: Dict[str, Any] = None) -> str:
