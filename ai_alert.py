@@ -26,6 +26,7 @@ from openai import OpenAI
 import google.generativeai as genai
 import traceback
 from typing import Dict, List, Any
+import sys
 
 _DEFAULT_TIMEOUT = 30 
 
@@ -814,6 +815,8 @@ Data Used:
 
     # -------------- public: run all models concurrently --------------
     async def analyze_all(self, market_data: Dict[str, Any], news: List[str], economic: Dict[str, Any], per_model_timeout: int = _DEFAULT_TIMEOUT) -> List[Dict[str, Any]]:
+        print("--- 🎯 analyze_all STARTING: Gathering AI tasks ---")
+    sys.stdout.flush() # บังคับให้พิมพ์ Log ทันที
         prompt = self._build_prompt(market_data, news, economic)
         tasks = []
         if "OPENAI_API_KEY" in self.api_keys:
