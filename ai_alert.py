@@ -27,7 +27,7 @@ import google.generativeai as genai
 import traceback
 from typing import Dict, List, Any
 import sys
-
+GLOBAL_LOG_BUFFER = [] # ตัวแปรสำหรับเก็บ Log ชั่วคราว
 _DEFAULT_TIMEOUT = 30 
 
 # Try importing optional ML libraries
