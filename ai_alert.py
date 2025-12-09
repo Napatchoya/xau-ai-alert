@@ -773,8 +773,17 @@ Data Used:
             raw = await self._run_blocking(_call_gemini_blocking, timeout=timeout)
             return self._wrap_result("GEMINI", raw)
         except Exception as e:
-            print(f"❌ GEMINI Asynchronous Failure: {e}")
-            return self._wrap_result("GEMINI", f"NEUTRAL - error: {e}")
+            # Error จาก Asynchronous call (เช่น timeout)
+            # ******************** < เพิ่ม Logging และ Flush > ********************
+            log_msg = f"❌ GEMINI Asynchronous Failure (Timeout/Exec): {e}"
+            print(log_msg)
+            sys.stdout.flush()  # บังคับให้ Log ออกทันที
+            # เนื่องจากคุณใช้ GLOBAL_LOG_BUFFER ใน analyze_all/analyze_consensus_manual
+            # เราจะเพิ่ม log เข้าไปใน buffer ด้วย เพื่อให้ถูกพิมพ์ออกมาพร้อมกัน
+            if 'GLOBAL_LOG_BUFFER' in globals():
+                GLOBAL_LOG_BUFFER.append(log_msg)
+            # ******************** < สิ้นสุด Logging > ********************
+            return self._wrap_result("GEMINI", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_deepseek(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
         def _call_deepseek_blocking():
@@ -794,8 +803,16 @@ Data Used:
             raw = await self._run_blocking(_call_deepseek_blocking, timeout=timeout)
             return self._wrap_result("DEEPSEEK", raw)
         except Exception as e:
-            print(f"❌ DEEPSEEK Asynchronous Failure: {e}")
-            return self._wrap_result("DEEPSEEK", f"NEUTRAL - error: {e}")
+            # Error จาก Asynchronous call (เช่น timeout ที่เกิดจาก _run_blocking)
+            # ******************** < เพิ่ม Logging และ Flush > ********************
+            log_msg = f"❌ DEEPSEEK Asynchronous Failure (Timeout/Exec): {e}"
+            print(log_msg)
+            sys.stdout.flush()  # บังคับให้ Log ออกทันที
+        
+            if 'GLOBAL_LOG_BUFFER' in globals():
+                GLOBAL_LOG_BUFFER.append(log_msg)
+            # ******************** < สิ้นสุด Logging > ********************
+            return self._wrap_result("DEEPSEEK", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_grok(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
         def _call_grok_blocking():
@@ -815,8 +832,16 @@ Data Used:
             raw = await self._run_blocking(_call_grok_blocking, timeout=timeout)
             return self._wrap_result("GROK", raw)
         except Exception as e:
-            print(f"❌ GROK Asynchronous Failure: {e}")
-            return self._wrap_result("GROK", f"NEUTRAL - error: {e}")
+            # Error จาก Asynchronous call (เช่น timeout ที่เกิดจาก _run_blocking)
+            # ******************** < เพิ่ม Logging และ Flush > ********************
+            log_msg = f"❌ GROK Asynchronous Failure (Timeout/Exec): {e}"
+            print(log_msg)
+            sys.stdout.flush()  # บังคับให้ Log ออกทันที
+        
+            if 'GLOBAL_LOG_BUFFER' in globals():
+                GLOBAL_LOG_BUFFER.append(log_msg)
+            # ******************** < สิ้นสุด Logging > ********************
+            return self._wrap_result("GROK", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     # -------------- public: run all models concurrently --------------
     async def analyze_all(self, market_data: Dict[str, Any], news: List[str], economic: Dict[str, Any], per_model_timeout: int = _DEFAULT_TIMEOUT) -> List[Dict[str, Any]]:
