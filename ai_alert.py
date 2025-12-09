@@ -731,6 +731,7 @@ Data Used:
 
     # -------------- model wrappers (async) --------------
     async def ask_openai(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        _DEFAULT_TIMEOUT = timeout
         def _call_openai_blocking():
             try:
                 from openai import OpenAI as OpenAIClient
@@ -749,8 +750,12 @@ Data Used:
             raw = await self._run_blocking(_call_openai_blocking, timeout=timeout)
             return self._wrap_result("OPENAI", raw)
         except Exception as e:
-            print(f"❌ OPENAI Asynchronous Failure: {e}")
-            return self._wrap_result("OPENAI", f"NEUTRAL - error: {e}")
+            log_msg = f"❌ OPENAI Asynchronous Failure (Timeout/Exec): {e}"
+            print(log_msg)
+            sys.stdout.flush()  # บังคับให้ Log ออกทันที
+            GLOBAL_LOG_BUFFER.append(log_msg)  # บันทึกเข้า Global Buffer ด้วย
+            # ******************** < สิ้นสุด Logging > ********************
+            return self._wrap_result("OPENAI", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_gemini(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
         def _call_gemini_blocking():
