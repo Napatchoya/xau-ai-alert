@@ -758,6 +758,7 @@ Data Used:
             return self._wrap_result("OPENAI", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_gemini(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        _DEFAULT_TIMEOUT = timeout
         def _call_gemini_blocking():
             try:
                 import google.generativeai as genai
@@ -786,6 +787,7 @@ Data Used:
             return self._wrap_result("GEMINI", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_deepseek(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        _DEFAULT_TIMEOUT = timeout
         def _call_deepseek_blocking():
             try:
                 import requests
@@ -815,6 +817,7 @@ Data Used:
             return self._wrap_result("DEEPSEEK", f"NEUTRAL - error: Timeout or Asynchronous exception occurred: {e}")
 
     async def ask_grok(self, prompt: str, timeout: int = _DEFAULT_TIMEOUT) -> Dict[str, Any]:
+        _DEFAULT_TIMEOUT = timeout
         def _call_grok_blocking():
             try:
                 import requests
