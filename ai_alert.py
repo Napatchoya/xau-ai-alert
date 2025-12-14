@@ -11915,6 +11915,59 @@ def detect_pattern(df):
 # ============================================
 # นำโค้ดนี้ไปแทนที่ @app.route('/') แบบเก่าของ NO.1
 
+@app.route('/analyze', methods=['GET'])
+def analyze_consensus_manual():
+    """
+    Manually trigger the full Multi-LLM consensus analysis.
+    This also prints the GLOBAL_LOG_BUFFER to the console immediately.
+    """
+    global GLOBAL_LOG_BUFFER
+    
+    # 1. Clear Log Buffer ก่อนเริ่ม
+    GLOBAL_LOG_BUFFER = []
+    
+    def analysis_task():
+        # ต้องจำลองการดึงข้อมูลที่จำเป็นสำหรับการเรียก analyze_all
+        try:
+            # Placeholder data (แทนที่ด้วยโค้ดดึงข้อมูลจริง)
+            market_data = {"price": 2045.30, "rsi": 65, "ema": 2030.50}
+            news = ["FED hinted rate cut next month.", "US unemployment rises.", "Geopolitical tensions increase gold appeal."]
+            economic = {"cpi": 3.2, "nfp": 150000}
+            
+            # 2. รัน Multi-LLM Analysis
+            print("--- Triggering Multi-LLM Consensus Analysis (Async) ---")
+            
+            # ต้องกำหนด ANALYZER ก่อนใช้งาน
+            if 'ANALYZER' not in globals():
+                GLOBAL_LOG_BUFFER.append("❌ ANALYZER instance not initialized globally.")
+                return 
+
+            results = asyncio.run(ANALYZER.analyze_all(market_data, news, economic)) 
+            print("--- Multi-LLM Consensus Analysis FINISHED ---")
+            
+            # 3. Process Consensus Result (Optional)
+            # ... โค้ดสร้าง Consensus Message จาก 'results' และส่ง Telegram ...
+
+        except Exception as e:
+            GLOBAL_LOG_BUFFER.append(f"❌ Critical Analysis Task Error: {e}")
+        finally:
+            # 4. บังคับพิมพ์ Log Buffer ทั้งหมดลงใน Console
+            if GLOBAL_LOG_BUFFER:
+                print("\n" + "="*50 + " CONSOLE LOG BUFFER DUMP " + "="*50)
+                for log_line in GLOBAL_LOG_BUFFER:
+                    print(log_line)
+                print("="*123 + "\n")
+                sys.stdout.flush()
+
+    # รัน Task ใน Thread แยก (เพื่อให้ Flask ตอบกลับทันที)
+    Thread(target=analysis_task, daemon=True).start()
+    
+    return jsonify({
+        "status": "✅ Multi-LLM Analysis Triggered", 
+        "mode": "MANUAL_TEST",
+        "note": "Check console logs for Consensus Results immediately."
+    })
+
 @app.route('/api/status')
 def api_status():
     """
