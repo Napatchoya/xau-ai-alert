@@ -848,8 +848,7 @@ Data Used:
 
     # -------------- public: run all models concurrently --------------
     async def analyze_all(self, market_data: Dict[str, Any], news: List[str], economic: Dict[str, Any], per_model_timeout: int = _DEFAULT_TIMEOUT) -> List[Dict[str, Any]]:
-        print("--- 🎯 analyze_all STARTING: Gathering AI tasks ---")
-    sys.stdout.flush() # บังคับให้พิมพ์ Log ทันที
+        GLOBAL_LOG_BUFFER.append("--- 🎯 analyze_all STARTING: Gathering AI tasks ---")
         prompt = self._build_prompt(market_data, news, economic)
         tasks = []
         if "OPENAI_API_KEY" in self.api_keys:
@@ -861,6 +860,7 @@ Data Used:
         if "GROK_API_KEY" in self.api_keys:
             tasks.append(self.ask_grok(prompt, timeout=per_model_timeout))
         if not tasks:
+            GLOBAL_LOG_BUFFER.append("⚠️ No AI tasks configured or API keys missing.")
             return []
         results = await asyncio.gather(*tasks, return_exceptions=False)
         
@@ -870,17 +870,24 @@ Data Used:
         valid_results = 0
         for result in results:
             log_message = ""
-            if "error" in result['raw'] or result['signal'] == 'NEUTRAL':
-                log_message = f"[{result['model']}]: ❌ FAILED or NEUTRAL. Raw Error/Signal: {result['raw']}"
+            if not isinstance(result, dict):
+                log_message = f"[UNKNOWN MODEL]: ❌ UNEXPECTED RESULT: {result}"
             else:
-                log_message = f"[{result['model']}]: ✅ Signal={result['signal']}, Reason Preview: {result['reason'][:30]}..."
-                valid_results += 1
+                raw_content = result.get('raw', '')
+                signal = result.get('signal', 'NEUTRAL')
+                reason = result.get('reason', '')
+                model = result.get('model', 'UNKNOWN')
+            
+                if "error" in raw_content.lower() or signal == 'NEUTRAL':
+                    log_message = f"[{model}]: ❌ FAILED or NEUTRAL. Raw Error/Signal: {raw_content}"
+                else:
+                    log_message = f"[{model}]: ✅ Signal={signal}, Reason Preview: {reason[:30]}..."
+                    valid_results += 1
         
             GLOBAL_LOG_BUFFER.append(log_message)
 
         GLOBAL_LOG_BUFFER.append(f"Total Valid Signals: {valid_results}/{len(results)}")
         GLOBAL_LOG_BUFFER.append("======================================================================")
-    
         # ******************** < สิ้นสุด Logging Block > ********************
     
         return results
