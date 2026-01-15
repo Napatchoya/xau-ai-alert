@@ -65,6 +65,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("API_KEY")
 
+# NEW: LLM API Keys
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 app = Flask(__name__)
 
 # Global variables
