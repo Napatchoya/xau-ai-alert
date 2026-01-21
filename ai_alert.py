@@ -67,6 +67,7 @@ API_KEY = os.getenv("API_KEY")
 
 # NEW: LLM API Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+news_api_key = os.getenv("NEWS_API_KEY")
 
 app = Flask(__name__)
 
