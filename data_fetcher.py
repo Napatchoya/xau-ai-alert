@@ -1,4 +1,4 @@
-from ai_alert import NewsAPI_API_KEY
+from ai_alert import NEWS_API_KEY
 
 def fetch_news(limit=5):
     """
@@ -7,12 +7,12 @@ def fetch_news(limit=5):
     url = (
         "https://newsapi.org/v2/everything?"
         "q=gold OR XAU OR dollar OR FED&language=en&sortBy=publishedAt"
-        f"&pageSize={limit}&apiKey={NewsAPI_API_KEY}"
+        f"&pageSize={limit}&apiKey={NEWS_API_KEY}"
     )
     resp = requests.get(url)
     data = resp.json()
     if data.get("status") != "ok":
-        raise RuntimeError(f"NewsAPI error: {data}")
+        raise RuntimeError(f"NEWSAPI error: {data}")
 
     articles = [
         {
