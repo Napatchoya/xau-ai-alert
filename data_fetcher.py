@@ -1,4 +1,4 @@
-from config import NewsAPI_API_KEY
+from ai_alert import NewsAPI_API_KEY
 
 def fetch_news(limit=5):
     """
