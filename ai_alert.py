@@ -18,6 +18,7 @@ warnings.filterwarnings('ignore')
 import matplotlib.patches as patches
 from scipy import interpolate  # สำหรับ smooth curves
 import base64
+from data_fetcher import fetch_news
 
 # Try importing optional ML libraries
 try:
